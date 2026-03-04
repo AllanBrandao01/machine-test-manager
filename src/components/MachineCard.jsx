@@ -4,6 +4,37 @@ export default function MachineCard({
   onStop,
   onResume,
 }) {
+  // DETECTAR TURNO NOTURNO
+  const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+  const lastBlock = machine.blocks?.[machine.blocks.length - 1];
+  const isRunning = lastBlock?.endTime === null;
+  const currentBlock = machine.blocks?.[machine.blocks.length - 1];
+
+  const nowMins = nowShiftMinutes();
+
+  const nextTest =
+    currentBlock?.tests
+      ?.map((t) => ({ t, mins: toShiftMinutes(t) }))
+      .filter((x) => x.mins >= nowMins)
+      .sort((a, b) => a.mins - b.mins)[0]?.t ?? null;
+
+  function toShiftMinutes(timeString) {
+    let mins = convertToMinutes(timeString);
+
+    if (isNightShift && mins < 18 * 60) mins += 1440;
+
+    return mins;
+  }
+
+  function nowShiftMinutes() {
+    const now = new Date();
+    let mins = now.getHours() * 60 + now.getMinutes();
+
+    if (isNightShift && mins < 18 * 60) mins += 1440;
+
+    return mins;
+  }
+
   return (
     <div
       style={{
@@ -22,14 +53,18 @@ export default function MachineCard({
 
           <ul>
             {block.tests?.map((testTime, i) => {
-              const testMinutes = convertToMinutes(testTime);
-              const now = new Date();
-              const nowMinutes = now.getHours() * 60 + now.getMinutes();
-              const isPast = testMinutes < nowMinutes;
+              const testMinutes = toShiftMinutes(testTime);
+              const isPast = testMinutes < nowMins;
 
               return (
-                <li key={i} style={{ color: isPast ? '#999' : '#000' }}>
-                  {testTime}
+                <li
+                  key={i}
+                  style={{
+                    color: isPast ? '#999' : '#000',
+                    fontWeight: testTime === nextTest ? '700' : '400',
+                  }}
+                >
+                  {testTime} {testTime === nextTest ? '← Próximo' : ''}
                 </li>
               );
             })}
@@ -55,9 +90,12 @@ export default function MachineCard({
       )}
 
       <div style={{ marginTop: '10px' }}>
-        <button onClick={() => onStop(machine.id)}>Parar Máquina</button>
+        <button disabled={!isRunning} onClick={() => onStop(machine.id)}>
+          Parar Máquina
+        </button>
 
         <button
+          disabled={isRunning}
           onClick={() => onResume(machine.id)}
           style={{ marginLeft: '10px' }}
         >

@@ -20,10 +20,8 @@ function machinesReducer(state, action) {
 
         const lastBlock = machine.blocks[machine.blocks.length - 1];
 
-        // already stopped
         if (lastBlock.endTime !== null) return machine;
 
-        // truncate tests after stopTime
         const stopMinutes = convertToMinutes(stopTime);
         const truncatedTests = lastBlock.tests.filter((t) => {
           const tMinutes = convertToMinutes(t);
@@ -53,7 +51,6 @@ function machinesReducer(state, action) {
 
         const lastBlock = machine.blocks[machine.blocks.length - 1];
 
-        // already running
         if (lastBlock.endTime === null) return machine;
 
         return {
@@ -97,6 +94,16 @@ function App() {
   // --- FUNÇÃO ADD MACHINE ---
   function handleAddMachine(machineData) {
     try {
+      const normalizedCode = machineData.code.trim().toUpperCase();
+
+      const alreadyExists = machines.some(
+        (m) => (m.code || '').trim().toUpperCase() === normalizedCode,
+      );
+
+      if (alreadyExists) {
+        alert('Machine code already exists');
+        return;
+      }
       const schedule = generateSchedule(
         machineData.firstTest,
         machineData.frequency,
@@ -134,53 +141,42 @@ function App() {
 
   // --- FUNÇÃO STOP MACHINE ---
   function handleStopMachine(machineId, stopTime, reason) {
+    const machine = machines.find((m) => m.id === machineId);
+    if (!machine) return;
+
+    const lastBlock = machine.blocks[machine.blocks.length - 1];
+
+    if (lastBlock.endTime !== null) {
+      alert('Machine is already stopped');
+      return;
+    }
+
     const formattedStopTime = formatTimeInput(stopTime);
 
-    dispatch((prevMachines) =>
-      prevMachines.map((machine) => {
-        if (machine.id !== machineId) return machine;
-
-        const lastBlock = machine.blocks[machine.blocks.length - 1];
-        if (lastBlock.endTime !== null) {
-          alert('Machine is already stopped');
-          return machine;
-        }
-
-        // Truncar horários não feitos
-        const newTests = lastBlock.tests.filter((testTime) => {
-          const testMinutes = convertToMinutes(testTime);
-          const stopMinutes = convertToMinutes(formattedStopTime);
-          return testMinutes <= stopMinutes;
-        });
-
-        const updatedBlocks = [...machine.blocks];
-        updatedBlocks[updatedBlocks.length - 1] = {
-          ...lastBlock,
-          endTime: formattedStopTime,
-          tests: newTests,
-        };
-
-        return {
-          ...machine,
-          blocks: updatedBlocks,
-          stops: [
-            ...machine.stops,
-            {
-              stoppedAt: formattedStopTime,
-              reason,
-            },
-          ],
-        };
-      }),
-    );
+    dispatch({
+      type: 'STOP_MACHINE',
+      payload: {
+        machineId,
+        stopTime: formattedStopTime,
+        reason,
+        convertToMinutes,
+      },
+    });
   }
 
   // --- FUNÇÃO RESUME MACHINE ---
   function handleResumeMachine(machineId, resumeTime) {
-    const formattedResumeTime = formatTimeInput(resumeTime);
-
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
+
+    const lastBlock = machine.blocks[machine.blocks.length - 1];
+
+    if (lastBlock.endTime === null) {
+      alert('Machine is already running');
+      return;
+    }
+
+    const formattedResumeTime = formatTimeInput(resumeTime);
 
     try {
       const newSchedule = generateSchedule(
@@ -188,6 +184,11 @@ function App() {
         machine.frequency,
         machine.shift,
       );
+
+      if (!newSchedule.length) {
+        alert('No remaining tests for this shift');
+        return;
+      }
 
       const newBlock = {
         startTime: formattedResumeTime,
