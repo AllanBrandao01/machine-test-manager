@@ -1,21 +1,84 @@
-import { useEffect, useState } from 'react';
-import {
-  convertToMinutes,
-  convertToTimeString,
-  formatTimeInput,
-} from './utils/time';
-import { generateSchedule, getShiftWindow } from './utils/schedule';
+import { useEffect, useReducer, useState } from 'react';
+import { convertToMinutes, formatTimeInput } from './utils/time';
 import MachineForm from './components/MachineForm';
 import MachineCard from './components/MachineCard';
+import { generateSchedule } from './utils/schedule';
+
+const STORAGE_KEY = 'machine-test-manager:machines';
+
+function machinesReducer(state, action) {
+  switch (action.type) {
+    case 'ADD_MACHINE': {
+      return [...state, action.payload];
+    }
+
+    case 'STOP_MACHINE': {
+      const { machineId, stopTime, reason, convertToMinutes } = action.payload;
+
+      return state.map((machine) => {
+        if (machine.id !== machineId) return machine;
+
+        const lastBlock = machine.blocks[machine.blocks.length - 1];
+
+        // already stopped
+        if (lastBlock.endTime !== null) return machine;
+
+        // truncate tests after stopTime
+        const stopMinutes = convertToMinutes(stopTime);
+        const truncatedTests = lastBlock.tests.filter((t) => {
+          const tMinutes = convertToMinutes(t);
+          return tMinutes <= stopMinutes;
+        });
+
+        const updatedBlocks = [...machine.blocks];
+        updatedBlocks[updatedBlocks.length - 1] = {
+          ...lastBlock,
+          endTime: stopTime,
+          tests: truncatedTests,
+        };
+
+        return {
+          ...machine,
+          blocks: updatedBlocks,
+          stops: [...machine.stops, { stoppedAt: stopTime, reason }],
+        };
+      });
+    }
+
+    case 'RESUME_MACHINE': {
+      const { machineId, newBlock } = action.payload;
+
+      return state.map((machine) => {
+        if (machine.id !== machineId) return machine;
+
+        const lastBlock = machine.blocks[machine.blocks.length - 1];
+
+        // already running
+        if (lastBlock.endTime === null) return machine;
+
+        return {
+          ...machine,
+          blocks: [...machine.blocks, newBlock],
+        };
+      });
+    }
+
+    case 'CLEAR_ALL': {
+      return [];
+    }
+
+    default:
+      return state;
+  }
+}
 
 function App() {
-  const STORAGE_KEY = 'machine-test-manager:machines';
   const [code, setCode] = useState('');
   const [material, setMaterial] = useState('');
   const [frequency, setFrequency] = useState(2);
   const [firstTest, setFirstTest] = useState('06:00');
   const [shift, setShift] = useState('A');
-  const [machines, setMachines] = useState(() => {
+  const [machines, dispatch] = useReducer(machinesReducer, undefined, () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return [];
 
@@ -56,7 +119,7 @@ function App() {
         stops: [],
       };
 
-      setMachines((prev) => [...prev, newMachine]);
+      dispatch({ type: 'ADD_MACHINE', payload: newMachine });
 
       // Limpar inputs
       setCode('');
@@ -73,7 +136,7 @@ function App() {
   function handleStopMachine(machineId, stopTime, reason) {
     const formattedStopTime = formatTimeInput(stopTime);
 
-    setMachines((prevMachines) =>
+    dispatch((prevMachines) =>
       prevMachines.map((machine) => {
         if (machine.id !== machineId) return machine;
 
@@ -116,50 +179,29 @@ function App() {
   function handleResumeMachine(machineId, resumeTime) {
     const formattedResumeTime = formatTimeInput(resumeTime);
 
-    setMachines((prevMachines) =>
-      prevMachines.map((machine) => {
-        if (machine.id !== machineId) return machine;
+    const machine = machines.find((m) => m.id === machineId);
+    if (!machine) return;
 
-        const lastBlock = machine.blocks[machine.blocks.length - 1];
-        if (lastBlock.endTime === null) {
-          alert('Machine is already running');
-          return machine;
-        }
+    try {
+      const newSchedule = generateSchedule(
+        formattedResumeTime,
+        machine.frequency,
+        machine.shift,
+      );
 
-        try {
-          const { startHour, endHour } = getShiftWindow(machine.shift);
-          let shiftStartInMinutes = startHour * 60;
-          let shiftEndInMinutes = endHour * 60;
-          if (shiftEndInMinutes <= shiftStartInMinutes)
-            shiftEndInMinutes += 1440;
+      const newBlock = {
+        startTime: formattedResumeTime,
+        endTime: null,
+        tests: newSchedule,
+      };
 
-          let currentTimeInMinutes = convertToMinutes(formattedResumeTime);
-          if (currentTimeInMinutes < shiftStartInMinutes)
-            currentTimeInMinutes += 1440;
-
-          const frequencyInMinutes = machine.frequency * 60;
-          const newSchedule = [];
-          while (currentTimeInMinutes <= shiftEndInMinutes) {
-            newSchedule.push(currentTimeInMinutes);
-            currentTimeInMinutes += frequencyInMinutes;
-          }
-
-          const newBlock = {
-            startTime: formattedResumeTime,
-            endTime: null,
-            tests: newSchedule.map(convertToTimeString),
-          };
-
-          return {
-            ...machine,
-            blocks: [...machine.blocks, newBlock],
-          };
-        } catch (error) {
-          alert(error.message);
-          return machine;
-        }
-      }),
-    );
+      dispatch({
+        type: 'RESUME_MACHINE',
+        payload: { machineId, newBlock },
+      });
+    } catch (error) {
+      alert(error.message);
+    }
   }
 
   // --- RETURN ---
@@ -171,7 +213,7 @@ function App() {
           if (
             window.confirm('Deseja limpar todas as máquinas para o novo turno?')
           ) {
-            setMachines([]);
+            dispatch({ type: 'CLEAR_ALL' });
             setCode('');
             setMaterial('');
             setFrequency(2);
