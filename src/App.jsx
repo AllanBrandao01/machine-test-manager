@@ -1,18 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   convertToMinutes,
   convertToTimeString,
   formatTimeInput,
 } from './utils/time';
 import { generateSchedule, getShiftWindow } from './utils/schedule';
+import MachineForm from './components/MachineForm';
+import MachineCard from './components/MachineCard';
 
 function App() {
-  const [machines, setMachines] = useState([]);
+  const STORAGE_KEY = 'machine-test-manager:machines';
   const [code, setCode] = useState('');
   const [material, setMaterial] = useState('');
   const [frequency, setFrequency] = useState(2);
   const [firstTest, setFirstTest] = useState('06:00');
   const [shift, setShift] = useState('A');
+  const [machines, setMachines] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return [];
+
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(machines));
+  }, [machines]);
 
   // --- FUNÇÃO ADD MACHINE ---
   function handleAddMachine(machineData) {
@@ -167,155 +184,50 @@ function App() {
         Limpar Tela / Novo Turno
       </button>
 
-      {/* FORMULÁRIO PARA ADICIONAR MÁQUINA */}
-      <div
-        style={{
-          marginBottom: '20px',
-          border: '1px solid #ccc',
-          padding: '10px',
-        }}
-      >
-        <h2>Adicionar Máquina</h2>
+      {/* FORMULÁRIO */}
+      <MachineForm
+        code={code}
+        setCode={setCode}
+        material={material}
+        setMaterial={setMaterial}
+        frequency={frequency}
+        setFrequency={setFrequency}
+        firstTest={firstTest}
+        setFirstTest={setFirstTest}
+        shift={shift}
+        setShift={setShift}
+        onCreate={() =>
+          handleAddMachine({
+            code,
+            material,
+            frequency,
+            firstTest,
+            shift,
+          })
+        }
+      />
 
-        <input
-          placeholder="Código"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          style={{ marginRight: '5px' }}
-        />
-
-        <input
-          placeholder="Material"
-          value={material}
-          onChange={(e) => setMaterial(e.target.value)}
-          style={{ marginRight: '5px' }}
-        />
-
-        <input
-          type="number"
-          placeholder="Frequência (horas)"
-          value={frequency}
-          onChange={(e) => setFrequency(Number(e.target.value))}
-          style={{ marginRight: '5px', width: '120px' }}
-        />
-
-        <input
-          type="time"
-          value={firstTest}
-          onChange={(e) => setFirstTest(e.target.value)}
-          style={{ marginRight: '5px' }}
-        />
-
-        <select
-          value={shift}
-          onChange={(e) => setShift(e.target.value)}
-          style={{ marginRight: '5px' }}
-        >
-          <option value="A">Turma A</option>
-          <option value="B">Turma B</option>
-          <option value="C">Turma C</option>
-          <option value="D">Turma D</option>
-        </select>
-
-        <button
-          onClick={() =>
-            handleAddMachine({
-              code,
-              material,
-              frequency,
-              firstTest,
-              shift,
-            })
-          }
-        >
-          Criar
-        </button>
-      </div>
-
-      {/* LISTA DE MÁQUINAS */}
+      {/* LISTA */}
       {machines?.map((machine) => (
-        <div
+        <MachineCard
           key={machine.id}
-          style={{
-            border: '1px solid #ccc',
-            marginBottom: '20px',
-            padding: '10px',
+          machine={machine}
+          convertToMinutes={convertToMinutes}
+          onStop={(id) => {
+            const stopTime = prompt('Digite o horário da parada (HH:MM)');
+            const reason = prompt('Motivo da parada?');
+
+            if (stopTime && reason) {
+              handleStopMachine(id, stopTime, reason);
+            }
           }}
-        >
-          <h3>{machine.code}</h3>
-          <p>Turma: {machine.shift}</p>
-          <p>Material: {machine.material}</p>
-
-          {machine.blocks?.map((block, index) => (
-            <div key={index} style={{ marginTop: '10px' }}>
-              <strong>Bloco {index + 1}</strong>
-
-              <ul>
-                {block.tests?.map((testTime, i) => {
-                  const testMinutes = convertToMinutes(testTime);
-                  const now = new Date();
-                  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-                  const isPast = testMinutes < nowMinutes;
-
-                  return (
-                    <li key={i} style={{ color: isPast ? '#999' : '#000' }}>
-                      {testTime}
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {block.endTime && (
-                <p style={{ color: 'red' }}>⛔ Parou às {block.endTime}</p>
-              )}
-            </div>
-          ))}
-
-          {/* HISTÓRICO DE PARADAS */}
-          {machine.stops?.length > 0 && (
-            <div
-              style={{ marginTop: '10px', fontSize: '0.9em', color: '#555' }}
-            >
-              <strong>Histórico de Paradas:</strong>
-              <ul>
-                {machine.stops.map((stop, idx) => (
-                  <li key={idx}>
-                    Parou às {stop.stoppedAt} - Motivo: {stop.reason}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* BOTÕES PARAR / RETOMAR */}
-          <div style={{ marginTop: '10px' }}>
-            <button
-              onClick={() => {
-                const stopTime = prompt('Digite o horário da parada (HH:MM)');
-                const reason = prompt('Motivo da parada?');
-                if (stopTime && reason) {
-                  handleStopMachine(machine.id, stopTime, reason);
-                }
-              }}
-            >
-              Parar Máquina
-            </button>
-
-            <button
-              onClick={() => {
-                const resumeTime = prompt(
-                  'Digite o horário de retorno (HH:MM)',
-                );
-                if (resumeTime) {
-                  handleResumeMachine(machine.id, resumeTime);
-                }
-              }}
-              style={{ marginLeft: '10px' }}
-            >
-              Retomar Máquina
-            </button>
-          </div>
-        </div>
+          onResume={(id) => {
+            const resumeTime = prompt('Digite o horário de retorno (HH:MM)');
+            if (resumeTime) {
+              handleResumeMachine(id, resumeTime);
+            }
+          }}
+        />
       ))}
     </>
   );
