@@ -64,6 +64,19 @@ function machinesReducer(state, action) {
       return [];
     }
 
+    case 'UPDATE_MACHINE': {
+      const { machineId, updates } = action.payload;
+
+      return state.map((machine) => {
+        if (machine.id !== machineId) return machine;
+
+        return {
+          ...machine,
+          ...updates,
+        };
+      });
+    }
+
     default:
       return state;
   }
@@ -205,6 +218,19 @@ function App() {
     }
   }
 
+  function handleUpdateMachine(machineId, updates) {
+    // basic validation
+    if (typeof updates.frequency === 'number' && updates.frequency <= 0) {
+      alert('Frequency must be greater than 0');
+      return;
+    }
+
+    dispatch({
+      type: 'UPDATE_MACHINE',
+      payload: { machineId, updates },
+    });
+  }
+
   // --- RETURN ---
   return (
     <>
@@ -270,6 +296,7 @@ function App() {
               handleResumeMachine(id, resumeTime);
             }
           }}
+          onUpdate={handleUpdateMachine}
         />
       ))}
     </>

@@ -1,22 +1,23 @@
+import { useState } from 'react';
+
 export default function MachineCard({
   machine,
   convertToMinutes,
   onStop,
   onResume,
+  onUpdate,
 }) {
   // DETECTAR TURNO NOTURNO
   const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+
   const lastBlock = machine.blocks?.[machine.blocks.length - 1];
   const isRunning = lastBlock?.endTime === null;
+
   const currentBlock = machine.blocks?.[machine.blocks.length - 1];
 
-  const nowMins = nowShiftMinutes();
-
-  const nextTest =
-    currentBlock?.tests
-      ?.map((t) => ({ t, mins: toShiftMinutes(t) }))
-      .filter((x) => x.mins >= nowMins)
-      .sort((a, b) => a.mins - b.mins)[0]?.t ?? null;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editMaterial, setEditMaterial] = useState(machine.material || '');
+  const [editFrequency, setEditFrequency] = useState(machine.frequency || 2);
 
   function toShiftMinutes(timeString) {
     let mins = convertToMinutes(timeString);
@@ -35,6 +36,20 @@ export default function MachineCard({
     return mins;
   }
 
+  const nowMins = nowShiftMinutes();
+
+  const nextTest =
+    currentBlock?.tests
+      ?.map((t) => ({ t, mins: toShiftMinutes(t) }))
+      .filter((x) => x.mins >= nowMins)
+      .sort((a, b) => a.mins - b.mins)[0]?.t ?? null;
+
+  function startEdit() {
+    setEditMaterial(machine.material || '');
+    setEditFrequency(machine.frequency || 2);
+    setIsEditing(true);
+  }
+
   return (
     <div
       style={{
@@ -45,7 +60,61 @@ export default function MachineCard({
     >
       <h3>{machine.code}</h3>
       <p>Turma: {machine.shift}</p>
-      <p>Material: {machine.material}</p>
+
+      {isEditing ? (
+        <div style={{ marginBottom: '10px' }}>
+          <div>
+            <label>
+              Material:{' '}
+              <input
+                value={editMaterial}
+                onChange={(e) => setEditMaterial(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div style={{ marginTop: '6px' }}>
+            <label>
+              Frequência (horas):{' '}
+              <input
+                type="number"
+                value={editFrequency}
+                onChange={(e) => setEditFrequency(Number(e.target.value))}
+                min={0.5}
+                step={0.5}
+              />
+            </label>
+          </div>
+
+          <div style={{ marginTop: '10px' }}>
+            <button
+              onClick={() => {
+                onUpdate(machine.id, {
+                  material: editMaterial,
+                  frequency: editFrequency,
+                });
+                setIsEditing(false);
+              }}
+            >
+              Salvar
+            </button>
+
+            <button
+              onClick={() => setIsEditing(false)}
+              style={{ marginLeft: '10px' }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: '10px' }}>
+          <p>Material: {machine.material}</p>
+          <p>Frequência: {machine.frequency}h</p>
+
+          <button onClick={startEdit}>Editar</button>
+        </div>
+      )}
 
       {machine.blocks?.map((block, index) => (
         <div key={index} style={{ marginTop: '10px' }}>
