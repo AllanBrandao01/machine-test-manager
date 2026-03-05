@@ -36,7 +36,7 @@ function machinesReducer(state, action) {
 
         //truncate pending tests correctly (shift-aware)
         const truncatedTests = (lastBlock.tests || []).filter((t) => {
-          const tMinutes = toShiftMinutes(t);
+          const tMinutes = toShiftMinutes(t.time);
           return tMinutes <= stopMinutes;
         });
 
@@ -79,7 +79,7 @@ function machinesReducer(state, action) {
         const stopMinutes = toShiftMinutes(lastBlock.endTime);
 
         const truncatedTests = (lastBlock.tests || []).filter((t) => {
-          const tMinutes = toShiftMinutes(t);
+          const tMinutes = toShiftMinutes(t.time);
           return tMinutes <= stopMinutes;
         });
 
@@ -113,9 +113,44 @@ function machinesReducer(state, action) {
       });
     }
 
+    case 'SET_TEST_DONE': {
+      const { machineId, blockIndex, time, done } = action.payload;
+
+      return state.map((machine) => {
+        if (machine.id !== machineId) return machine;
+
+        const updatedBlocks = machine.blocks.map((block, idx) => {
+          if (idx !== blockIndex) return block;
+
+          return {
+            ...block,
+            tests: (block.tests || []).map((t) =>
+              t.time === time ? { ...t, done } : t,
+            ),
+          };
+        });
+
+        return { ...machine, blocks: updatedBlocks };
+      });
+    }
+
     default:
       return state;
   }
+}
+
+function normalizeMachines(data) {
+  if (!Array.isArray(data)) return [];
+
+  return data.map((m) => ({
+    ...m,
+    blocks: (m.blocks || []).map((b) => ({
+      ...b,
+      tests: (b.tests || []).map((t) =>
+        typeof t === 'string' ? { time: t, done: false } : t,
+      ),
+    })),
+  }));
 }
 
 function App() {
@@ -130,7 +165,7 @@ function App() {
 
     try {
       const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? parsed : [];
+      return normalizeMachines(parsed);
     } catch {
       return [];
     }
@@ -143,6 +178,11 @@ function App() {
   // add machine
   function handleAddMachine(machineData) {
     try {
+      const normalizedFirstTest = formatTimeInput(machineData.firstTest);
+      if (!normalizedFirstTest) {
+        alert('Invalid first test time');
+        return;
+      }
       const normalizedCode = machineData.code.trim().toUpperCase();
 
       const alreadyExists = machines.some(
@@ -169,7 +209,7 @@ function App() {
           {
             startTime: machineData.firstTest,
             endTime: null,
-            tests: schedule,
+            tests: schedule.map((t) => ({ time: t, done: false })),
           },
         ],
         stops: [],
@@ -201,6 +241,10 @@ function App() {
     }
 
     const formattedStopTime = formatTimeInput(stopTime);
+    if (!formattedStopTime) {
+      alert('Invalid stop time');
+      return;
+    }
 
     dispatch({
       type: 'STOP_MACHINE',
@@ -225,6 +269,10 @@ function App() {
     }
 
     const formattedResumeTime = formatTimeInput(resumeTime);
+    if (!formattedResumeTime) {
+      alert('Invalid resume time');
+      return;
+    }
 
     try {
       const newSchedule = generateSchedule(
@@ -241,7 +289,7 @@ function App() {
       const newBlock = {
         startTime: formattedResumeTime,
         endTime: null,
-        tests: newSchedule,
+        tests: newSchedule.map((t) => ({ time: t, done: false })),
       };
 
       dispatch({
@@ -333,6 +381,58 @@ function App() {
     });
   }
 
+  function handleCompleteNextTest(machineId) {
+    const machine = machines.find((m) => m.id === machineId);
+    if (!machine) return;
+
+    const blockIndex = machine.blocks.length - 1;
+    const block = machine.blocks[blockIndex];
+
+    // só faz sentido concluir se estiver rodando
+    if (block.endTime !== null) {
+      alert('Machine is stopped');
+      return;
+    }
+
+    const nextPending = block.tests?.find((t) => !t.done);
+    if (!nextPending) {
+      alert('All tests are done');
+      return;
+    }
+
+    // shift-aware compare (igual usamos antes)
+    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+    function toShiftMinutes(timeString) {
+      let mins = convertToMinutes(timeString);
+      if (isNightShift && mins < 18 * 60) mins += 1440;
+      return mins;
+    }
+
+    const now = new Date();
+    const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+      now.getMinutes(),
+    ).padStart(2, '0')}`;
+
+    const nowMins = toShiftMinutes(nowStr);
+    const nextMins = toShiftMinutes(nextPending.time);
+
+    // não deixa concluir teste “no futuro”
+    if (nextMins > nowMins) {
+      alert('Next test is not due yet');
+      return;
+    }
+
+    dispatch({
+      type: 'SET_TEST_DONE',
+      payload: {
+        machineId,
+        blockIndex,
+        time: nextPending.time,
+        done: true,
+      },
+    });
+  }
+
   // --- RETURN ---
   return (
     <>
@@ -398,6 +498,7 @@ function App() {
             }
           }}
           onUpdate={handleUpdateMachine}
+          onCompleteNext={handleCompleteNextTest}
         />
       ))}
     </>

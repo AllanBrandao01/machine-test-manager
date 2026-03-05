@@ -12,9 +12,29 @@ export function convertToTimeString(totalMinutes) {
 }
 
 export function formatTimeInput(input) {
-  if (!input.includes(':')) {
-    const hours = input.padStart(2, '0');
-    return `${hours}:00`;
+  if (input == null) return '';
+
+  const raw = String(input).trim();
+  if (!raw) return '';
+
+  // Accept "H", "HH", "H:M", "HH:MM" etc.
+  const match = raw.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+  if (!match) return '';
+
+  const hours = Number(match[1]);
+  let minutes = match[2] == null ? 0 : Number(match[2]);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return '';
+
+  // Validate hours/minutes range
+  if (hours < 0 || hours > 23) return '';
+  if (minutes < 0 || minutes > 59) return '';
+
+  // Normalize minutes:
+  if (match[2] != null && match[2].length === 1) {
+    minutes = minutes * 10; // "3" -> 30
+    if (minutes > 59) return '';
   }
-  return input;
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }

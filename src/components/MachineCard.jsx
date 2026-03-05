@@ -6,6 +6,7 @@ export default function MachineCard({
   onStop,
   onResume,
   onUpdate,
+  onCompleteNext,
 }) {
   // DETECTAR TURNO NOTURNO
   const isNightShift = machine.shift === 'B' || machine.shift === 'D';
@@ -18,6 +19,7 @@ export default function MachineCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editMaterial, setEditMaterial] = useState(machine.material || '');
   const [editFrequency, setEditFrequency] = useState(machine.frequency || 2);
+  const nextTestTime = currentBlock?.tests?.find((t) => !t.done)?.time ?? null;
 
   function toShiftMinutes(timeString) {
     let mins = convertToMinutes(timeString);
@@ -38,17 +40,17 @@ export default function MachineCard({
 
   const nowMins = nowShiftMinutes();
 
-  const nextTest =
-    currentBlock?.tests
-      ?.map((t) => ({ t, mins: toShiftMinutes(t) }))
-      .filter((x) => x.mins >= nowMins)
-      .sort((a, b) => a.mins - b.mins)[0]?.t ?? null;
-
   function startEdit() {
     setEditMaterial(machine.material || '');
     setEditFrequency(machine.frequency || 2);
     setIsEditing(true);
   }
+
+  const hasLateTest =
+    currentBlock?.tests?.some((t) => {
+      const tMins = toShiftMinutes(t.time);
+      return tMins < nowMins && !t.done;
+    }) ?? false;
 
   return (
     <div
@@ -127,19 +129,25 @@ export default function MachineCard({
           <strong>Bloco {index + 1}</strong>
 
           <ul>
-            {block.tests?.map((testTime, i) => {
-              const testMinutes = toShiftMinutes(testTime);
+            {block.tests?.map((test, i) => {
+              const testMinutes = toShiftMinutes(test.time);
               const isPast = testMinutes < nowMins;
+
+              const isNext = test.time === nextTestTime;
+              const isLate = isPast && !test.done;
 
               return (
                 <li
                   key={i}
                   style={{
-                    color: isPast ? '#999' : '#000',
-                    fontWeight: testTime === nextTest ? '700' : '400',
+                    color: test.done ? '#999' : '#000',
+                    fontWeight: isNext ? '700' : '400',
+                    textDecoration: test.done ? 'line-through' : 'none',
                   }}
                 >
-                  {testTime} {testTime === nextTest ? '← Próximo' : ''}
+                  {test.time}
+                  {isNext && !test.done ? ' ← Próximo' : ''}
+                  {isLate ? ' ⚠ Atrasado' : ''}
                 </li>
               );
             })}
@@ -175,6 +183,18 @@ export default function MachineCard({
           style={{ marginLeft: '10px' }}
         >
           Retomar Máquina
+        </button>
+
+        <button
+          disabled={!isRunning}
+          onClick={() => onCompleteNext(machine.id)}
+          style={{
+            marginLeft: '10px',
+            fontWeight: hasLateTest ? '700' : '400',
+            textDecoration: hasLateTest ? 'underline' : 'none',
+          }}
+        >
+          Concluir próximo teste {hasLateTest ? '⚠' : ''}
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// src/components/MachineForm.jsx
+import { formatTimeInput } from '../utils/time';
 
 export default function MachineForm({
   code,
@@ -27,6 +27,7 @@ export default function MachineForm({
         placeholder="Código"
         value={code}
         onChange={(e) => setCode(e.target.value)}
+        onBlur={() => setCode(code.trim().toUpperCase())}
         style={{ marginRight: '5px' }}
       />
 
@@ -34,6 +35,14 @@ export default function MachineForm({
         placeholder="Material"
         value={material}
         onChange={(e) => setMaterial(e.target.value)}
+        onBlur={() => {
+          const value = material.trim().toUpperCase();
+          if (!value) {
+            alert('Material não pode ficar vazio');
+            return;
+          }
+          setMaterial(value);
+        }}
         style={{ marginRight: '5px' }}
       />
 
@@ -49,6 +58,15 @@ export default function MachineForm({
         type="time"
         value={firstTest}
         onChange={(e) => setFirstTest(e.target.value)}
+        onBlur={() => {
+          const normalized = formatTimeInput(firstTest);
+          if (!normalized) {
+            alert('Horário inválido');
+            setFirstTest('06:00');
+            return;
+          }
+          setFirstTest(normalized);
+        }}
         style={{ marginRight: '5px' }}
       />
 
