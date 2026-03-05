@@ -18,18 +18,30 @@ function machinesReducer(state, action) {
       return state.map((machine) => {
         if (machine.id !== machineId) return machine;
 
-        const lastBlock = machine.blocks[machine.blocks.length - 1];
+        const lastBlockIndex = machine.blocks.length - 1;
+        const lastBlock = machine.blocks[lastBlockIndex];
 
+        // already stopped
         if (lastBlock.endTime !== null) return machine;
 
-        const stopMinutes = convertToMinutes(stopTime);
-        const truncatedTests = lastBlock.tests.filter((t) => {
-          const tMinutes = convertToMinutes(t);
+        const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+
+        function toShiftMinutes(timeString) {
+          let mins = convertToMinutes(timeString);
+          if (isNightShift && mins < 18 * 60) mins += 1440;
+          return mins;
+        }
+
+        const stopMinutes = toShiftMinutes(stopTime);
+
+        //truncate pending tests correctly (shift-aware)
+        const truncatedTests = (lastBlock.tests || []).filter((t) => {
+          const tMinutes = toShiftMinutes(t);
           return tMinutes <= stopMinutes;
         });
 
         const updatedBlocks = [...machine.blocks];
-        updatedBlocks[updatedBlocks.length - 1] = {
+        updatedBlocks[lastBlockIndex] = {
           ...lastBlock,
           endTime: stopTime,
           tests: truncatedTests,
@@ -44,18 +56,42 @@ function machinesReducer(state, action) {
     }
 
     case 'RESUME_MACHINE': {
-      const { machineId, newBlock } = action.payload;
+      const { machineId, newBlock, convertToMinutes } = action.payload;
 
       return state.map((machine) => {
         if (machine.id !== machineId) return machine;
 
-        const lastBlock = machine.blocks[machine.blocks.length - 1];
+        const lastBlockIndex = machine.blocks.length - 1;
+        const lastBlock = machine.blocks[lastBlockIndex];
 
+        // already running
         if (lastBlock.endTime === null) return machine;
+
+        const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+
+        function toShiftMinutes(timeString) {
+          let mins = convertToMinutes(timeString);
+          if (isNightShift && mins < 18 * 60) mins += 1440;
+          return mins;
+        }
+
+        //guarantee truncation using lastBlock.endTime (shift-aware)
+        const stopMinutes = toShiftMinutes(lastBlock.endTime);
+
+        const truncatedTests = (lastBlock.tests || []).filter((t) => {
+          const tMinutes = toShiftMinutes(t);
+          return tMinutes <= stopMinutes;
+        });
+
+        const updatedBlocks = [...machine.blocks];
+        updatedBlocks[lastBlockIndex] = {
+          ...lastBlock,
+          tests: truncatedTests,
+        };
 
         return {
           ...machine,
-          blocks: [...machine.blocks, newBlock],
+          blocks: [...updatedBlocks, newBlock],
         };
       });
     }
@@ -104,7 +140,7 @@ function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(machines));
   }, [machines]);
 
-  // Adicionar máquina
+  // add machine
   function handleAddMachine(machineData) {
     try {
       const normalizedCode = machineData.code.trim().toUpperCase();
@@ -141,7 +177,7 @@ function App() {
 
       dispatch({ type: 'ADD_MACHINE', payload: newMachine });
 
-      // Limpar inputs
+      // clean inputs
       setCode('');
       setMaterial('');
       setFrequency(2);
@@ -152,7 +188,7 @@ function App() {
     }
   }
 
-  // Função para parada de máquina
+  // function for stoped machine
   function handleStopMachine(machineId, stopTime, reason) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
@@ -210,7 +246,7 @@ function App() {
 
       dispatch({
         type: 'RESUME_MACHINE',
-        payload: { machineId, newBlock },
+        payload: { machineId, newBlock, convertToMinutes },
       });
     } catch (error) {
       alert(error.message);
@@ -218,8 +254,76 @@ function App() {
   }
 
   function handleUpdateMachine(machineId, updates) {
+    const machine = machines.find((m) => m.id === machineId);
+    if (!machine) return;
+
     if (typeof updates.frequency === 'number' && updates.frequency <= 0) {
       alert('Frequency must be greater than 0');
+      return;
+    }
+
+    const lastBlockIndex = machine.blocks.length - 1;
+    const lastBlock = machine.blocks[lastBlockIndex];
+    const isRunning = lastBlock?.endTime === null;
+
+    // Helper: normalize minutes for night shift comparisons
+    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+    function toShiftMinutes(timeString) {
+      let mins = convertToMinutes(timeString);
+      if (isNightShift && mins < 18 * 60) mins += 1440;
+      return mins;
+    }
+
+    // If frequency changed AND machine is running -> recalc remaining tests in current block
+    const freqChanged =
+      typeof updates.frequency === 'number' &&
+      updates.frequency !== machine.frequency;
+
+    if (isRunning && freqChanged) {
+      const now = new Date();
+      const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+        now.getMinutes(),
+      ).padStart(2, '0')}`;
+
+      const nowMins = toShiftMinutes(nowStr);
+
+      // Keep past tests
+      const pastTests = (lastBlock.tests || []).filter(
+        (t) => toShiftMinutes(t) < nowMins,
+      );
+
+      // Generate new future tests from "now" using the NEW frequency
+      let futureTests = [];
+      try {
+        futureTests = generateSchedule(
+          nowStr,
+          updates.frequency,
+          machine.shift,
+        ).filter((t) => toShiftMinutes(t) >= nowMins);
+      } catch (error) {
+        alert(error.message);
+        return;
+      }
+
+      const updatedLastBlock = {
+        ...lastBlock,
+        tests: [...pastTests, ...futureTests],
+      };
+
+      const updatedBlocks = [...machine.blocks];
+      updatedBlocks[lastBlockIndex] = updatedLastBlock;
+
+      dispatch({
+        type: 'UPDATE_MACHINE',
+        payload: {
+          machineId,
+          updates: {
+            ...updates,
+            blocks: updatedBlocks,
+          },
+        },
+      });
+
       return;
     }
 
