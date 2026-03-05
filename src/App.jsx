@@ -104,7 +104,7 @@ function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(machines));
   }, [machines]);
 
-  // --- FUNÇÃO ADD MACHINE ---
+  // Adicionar máquina
   function handleAddMachine(machineData) {
     try {
       const normalizedCode = machineData.code.trim().toUpperCase();
@@ -152,7 +152,7 @@ function App() {
     }
   }
 
-  // --- FUNÇÃO STOP MACHINE ---
+  // Função para parada de máquina
   function handleStopMachine(machineId, stopTime, reason) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
@@ -177,7 +177,6 @@ function App() {
     });
   }
 
-  // --- FUNÇÃO RESUME MACHINE ---
   function handleResumeMachine(machineId, resumeTime) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
@@ -219,7 +218,6 @@ function App() {
   }
 
   function handleUpdateMachine(machineId, updates) {
-    // basic validation
     if (typeof updates.frequency === 'number' && updates.frequency <= 0) {
       alert('Frequency must be greater than 0');
       return;
@@ -276,7 +274,6 @@ function App() {
         }
       />
 
-      {/* LISTA */}
       {machines?.map((machine) => (
         <MachineCard
           key={machine.id}

@@ -59,6 +59,12 @@ export default function MachineCard({
       }}
     >
       <h3>{machine.code}</h3>
+      <div style={{ marginBottom: '10px' }}>
+        <strong>Status: </strong>
+        <span style={{ color: isRunning ? 'green' : 'red' }}>
+          {isRunning ? '🟢 Rodando' : '🔴 Parada'}
+        </span>
+      </div>
       <p>Turma: {machine.shift}</p>
 
       {isEditing ? (
