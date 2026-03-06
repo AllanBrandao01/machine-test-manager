@@ -1,6 +1,7 @@
 import { formatTimeInput } from '../utils/time';
+import styles from './index.module.css';
 
-export default function MachineForm({
+function MachineForm({
   code,
   setCode,
   material,
@@ -85,3 +86,5 @@ export default function MachineForm({
     </div>
   );
 }
+
+export default MachineForm;

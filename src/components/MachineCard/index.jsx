@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import styles from './index.module.css';
 
-export default function MachineCard({
+function MachineCard({
   machine,
   convertToMinutes,
   onStop,
@@ -200,3 +201,5 @@ export default function MachineCard({
     </div>
   );
 }
+
+export default MachineCard;
