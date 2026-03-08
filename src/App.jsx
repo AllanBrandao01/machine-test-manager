@@ -478,29 +478,31 @@ function App() {
         }
       />
 
-      {machines?.map((machine) => (
-        <MachineCard
-          key={machine.id}
-          machine={machine}
-          convertToMinutes={convertToMinutes}
-          onStop={(id) => {
-            const stopTime = prompt('Digite o horário da parada (HH:MM)');
-            const reason = prompt('Motivo da parada?');
+      <div className="machinesGrid">
+        {machines?.map((machine) => (
+          <MachineCard
+            key={machine.id}
+            machine={machine}
+            convertToMinutes={convertToMinutes}
+            onStop={(id) => {
+              const stopTime = prompt('Digite o horário da parada (HH:MM)');
+              const reason = prompt('Motivo da parada?');
 
-            if (stopTime && reason) {
-              handleStopMachine(id, stopTime, reason);
-            }
-          }}
-          onResume={(id) => {
-            const resumeTime = prompt('Digite o horário de retorno (HH:MM)');
-            if (resumeTime) {
-              handleResumeMachine(id, resumeTime);
-            }
-          }}
-          onUpdate={handleUpdateMachine}
-          onCompleteNext={handleCompleteNextTest}
-        />
-      ))}
+              if (stopTime && reason) {
+                handleStopMachine(id, stopTime, reason);
+              }
+            }}
+            onResume={(id) => {
+              const resumeTime = prompt('Digite o horário de retorno (HH:MM)');
+              if (resumeTime) {
+                handleResumeMachine(id, resumeTime);
+              }
+            }}
+            onUpdate={handleUpdateMachine}
+            onCompleteNext={handleCompleteNextTest}
+          />
+        ))}
+      </div>
     </>
   );
 }

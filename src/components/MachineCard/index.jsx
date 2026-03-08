@@ -9,7 +9,6 @@ function MachineCard({
   onUpdate,
   onCompleteNext,
 }) {
-  // DETECTAR TURNO NOTURNO
   const isNightShift = machine.shift === 'B' || machine.shift === 'D';
 
   const lastBlock = machine.blocks?.[machine.blocks.length - 1];
@@ -20,6 +19,7 @@ function MachineCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editMaterial, setEditMaterial] = useState(machine.material || '');
   const [editFrequency, setEditFrequency] = useState(machine.frequency || 2);
+
   const nextTestTime = currentBlock?.tests?.find((t) => !t.done)?.time ?? null;
 
   function toShiftMinutes(timeString) {
@@ -54,38 +54,40 @@ function MachineCard({
     }) ?? false;
 
   return (
-    <div
-      style={{
-        border: '1px solid #ccc',
-        marginBottom: '20px',
-        padding: '10px',
-      }}
-    >
-      <h3>{machine.code}</h3>
-      <div style={{ marginBottom: '10px' }}>
-        <strong>Status: </strong>
-        <span style={{ color: isRunning ? 'green' : 'red' }}>
-          {isRunning ? '🟢 Rodando' : '🔴 Parada'}
+    <div className={styles.card}>
+      <div className={styles.header}>
+        <div>
+          <h3 className={styles.code}>{machine.code}</h3>
+          <p className={styles.shift}>Turma: {machine.shift}</p>
+        </div>
+
+        <span
+          className={`${styles.statusBadge} ${
+            isRunning ? styles.running : styles.stopped
+          }`}
+        >
+          {isRunning ? 'Rodando' : 'Parada'}
         </span>
       </div>
-      <p>Turma: {machine.shift}</p>
 
       {isEditing ? (
-        <div style={{ marginBottom: '10px' }}>
-          <div>
-            <label>
-              Material:{' '}
+        <div className={styles.editSection}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>
+              Material
               <input
+                className={styles.input}
                 value={editMaterial}
                 onChange={(e) => setEditMaterial(e.target.value)}
               />
             </label>
           </div>
 
-          <div style={{ marginTop: '6px' }}>
-            <label>
-              Frequência (horas):{' '}
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>
+              Frequência (horas)
               <input
+                className={styles.input}
                 type="number"
                 value={editFrequency}
                 onChange={(e) => setEditFrequency(Number(e.target.value))}
@@ -95,8 +97,9 @@ function MachineCard({
             </label>
           </div>
 
-          <div style={{ marginTop: '10px' }}>
+          <div className={styles.actionsRow}>
             <button
+              className={styles.primaryButton}
               onClick={() => {
                 onUpdate(machine.id, {
                   material: editMaterial,
@@ -109,63 +112,95 @@ function MachineCard({
             </button>
 
             <button
+              className={styles.secondaryButton}
               onClick={() => setIsEditing(false)}
-              style={{ marginLeft: '10px' }}
             >
               Cancelar
             </button>
           </div>
         </div>
       ) : (
-        <div style={{ marginBottom: '10px' }}>
-          <p>Material: {machine.material}</p>
-          <p>Frequência: {machine.frequency}h</p>
+        <div className={styles.infoSection}>
+          <p className={styles.infoText}>
+            <strong>Material:</strong> {machine.material}
+          </p>
+          <p className={styles.infoText}>
+            <strong>Frequência:</strong> {machine.frequency}h
+          </p>
 
-          <button onClick={startEdit}>Editar</button>
+          <button className={styles.secondaryButton} onClick={startEdit}>
+            Editar
+          </button>
         </div>
       )}
 
-      {machine.blocks?.map((block, index) => (
-        <div key={index} style={{ marginTop: '10px' }}>
-          <strong>Bloco {index + 1}</strong>
+      <div className={styles.blocksSection}>
+        {machine.blocks?.map((block, index) => {
+          const blockIsRunning = block.endTime === null;
 
-          <ul>
-            {block.tests?.map((test, i) => {
-              const testMinutes = toShiftMinutes(test.time);
-              const isPast = testMinutes < nowMins;
+          return (
+            <div key={index} className={styles.block}>
+              {index !== 0 && (
+                <strong className={styles.blockTitle}>
+                  Retorno {block.startTime}
+                </strong>
+              )}
 
-              const isNext = test.time === nextTestTime;
-              const isLate = isPast && !test.done;
+              <ul className={styles.testList}>
+                {block.tests?.map((test, i) => {
+                  const testMinutes = toShiftMinutes(test.time);
+                  const isPast = testMinutes < nowMins;
+                  const isNext = test.time === nextTestTime;
+                  const isLate = blockIsRunning && isPast && !test.done;
 
-              return (
-                <li
-                  key={i}
-                  style={{
-                    color: test.done ? '#999' : '#000',
-                    fontWeight: isNext ? '700' : '400',
-                    textDecoration: test.done ? 'line-through' : 'none',
-                  }}
-                >
-                  {test.time}
-                  {isNext && !test.done ? ' ← Próximo' : ''}
-                  {isLate ? ' ⚠ Atrasado' : ''}
-                </li>
-              );
-            })}
-          </ul>
+                  let testClass = styles.testItem;
 
-          {block.endTime && (
-            <p style={{ color: 'red' }}>⛔ Parou às {block.endTime}</p>
-          )}
-        </div>
-      ))}
+                  if (test.done) {
+                    testClass = `${styles.testItem} ${styles.testDone}`;
+                  } else if (isLate) {
+                    testClass = `${styles.testItem} ${styles.testLate}`;
+                  } else if (isNext) {
+                    testClass = `${styles.testItem} ${styles.testNext}`;
+                  }
+
+                  return (
+                    <li key={i} className={testClass}>
+                      <span
+                        className={`${styles.testTime} ${test.done ? styles.timeDone : ''}`}
+                      >
+                        {test.time}
+                      </span>
+
+                      <span className={styles.testMeta}>
+                        {test.done
+                          ? '✓'
+                          : isLate
+                            ? 'Atrasado'
+                            : !blockIsRunning && isPast
+                              ? 'Não realizado'
+                              : isNext
+                                ? 'Próximo'
+                                : ''}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {block.endTime && (
+                <p className={styles.stopText}>Parou às {block.endTime}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {machine.stops?.length > 0 && (
-        <div style={{ marginTop: '10px', fontSize: '0.9em', color: '#555' }}>
-          <strong>Histórico de Paradas:</strong>
-          <ul>
+        <div className={styles.historySection}>
+          <strong className={styles.historyTitle}>Histórico de Paradas</strong>
+          <ul className={styles.historyList}>
             {machine.stops.map((stop, idx) => (
-              <li key={idx}>
+              <li key={idx} className={styles.historyItem}>
                 Parou às {stop.stoppedAt} - Motivo: {stop.reason}
               </li>
             ))}
@@ -173,27 +208,29 @@ function MachineCard({
         </div>
       )}
 
-      <div style={{ marginTop: '10px' }}>
-        <button disabled={!isRunning} onClick={() => onStop(machine.id)}>
+      <div className={styles.actionsRow}>
+        <button
+          className={styles.dangerButton}
+          disabled={!isRunning}
+          onClick={() => onStop(machine.id)}
+        >
           Parar Máquina
         </button>
 
         <button
+          className={styles.secondaryButton}
           disabled={isRunning}
           onClick={() => onResume(machine.id)}
-          style={{ marginLeft: '10px' }}
         >
           Retomar Máquina
         </button>
 
         <button
+          className={`${styles.primaryButton} ${
+            hasLateTest ? styles.attentionButton : ''
+          }`}
           disabled={!isRunning}
           onClick={() => onCompleteNext(machine.id)}
-          style={{
-            marginLeft: '10px',
-            fontWeight: hasLateTest ? '700' : '400',
-            textDecoration: hasLateTest ? 'underline' : 'none',
-          }}
         >
           Concluir próximo teste {hasLateTest ? '⚠' : ''}
         </button>
