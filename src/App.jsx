@@ -355,17 +355,15 @@ function App() {
 
       // Keep past tests
       const pastTests = (lastBlock.tests || []).filter(
-        (t) => toShiftMinutes(t) < nowMins,
+        (test) => toShiftMinutes(test.time) < nowMins,
       );
 
       // Generate new future tests from "now" using the NEW frequency
       let futureTests = [];
       try {
-        futureTests = generateSchedule(
-          nowStr,
-          updates.frequency,
-          machine.shift,
-        ).filter((t) => toShiftMinutes(t) >= nowMins);
+        futureTests = generateSchedule(nowStr, updates.frequency, machine.shift)
+          .filter((time) => toShiftMinutes(time) >= nowMins)
+          .map((time) => ({ time, done: false }));
       } catch (error) {
         alert(error.message);
         return;
