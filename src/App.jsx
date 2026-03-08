@@ -183,6 +183,15 @@ function App() {
   // add machine
   function handleAddMachine(machineData) {
     try {
+      if (!machineData.code.trim()) {
+        alert('Informe o nome da máquina.');
+        return;
+      }
+
+      if (!machineData.material.trim()) {
+        alert('Informe o material.');
+        return;
+      }
       const normalizedFirstTest = formatTimeInput(machineData.firstTest);
       if (!normalizedFirstTest) {
         alert('Invalid first test time');
