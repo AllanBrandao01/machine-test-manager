@@ -18,9 +18,10 @@ function MachineForm({
     <div className={styles.formCard}>
       <div className={styles.header}>
         <div>
-          <h2 className={styles.title}>Controle de Testes</h2>
+          <h2 className={styles.title}>Cadastro de máquina</h2>
           <p className={styles.subtitle}>
-            Cadastre uma máquina e gere o cronograma automático do turno.
+            Informe os dados da máquina para gerar o cronograma de testes do
+            turno.
           </p>
         </div>
       </div>

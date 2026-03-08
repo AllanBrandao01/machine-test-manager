@@ -8,6 +8,7 @@ function MachineCard({
   onResume,
   onUpdate,
   onCompleteNext,
+  onDelete,
 }) {
   const isNightShift = machine.shift === 'B' || machine.shift === 'D';
 
@@ -54,7 +55,15 @@ function MachineCard({
     }) ?? false;
 
   return (
-    <div className={styles.card}>
+    <div
+      className={`${styles.card} ${
+        !isRunning
+          ? styles.machineStopped
+          : hasLateTest
+            ? styles.machineAlert
+            : styles.machineRunning
+      }`}
+    >
       <div className={styles.header}>
         <div>
           <h3 className={styles.code}>{machine.code}</h3>
@@ -130,6 +139,13 @@ function MachineCard({
 
           <button className={styles.secondaryButton} onClick={startEdit}>
             Editar
+          </button>
+
+          <button
+            className={styles.deleteButton}
+            onClick={() => onDelete(machine.id)}
+          >
+            Excluir
           </button>
         </div>
       )}

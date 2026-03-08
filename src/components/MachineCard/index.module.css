@@ -8,6 +8,25 @@
   box-shadow: 0 6px 18px rgba(27, 111, 106, 0.08);
 }
 
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(27, 111, 106, 0.14);
+}
+
+.machineRunning {
+  border-left-color: #1b6f6a;
+}
+
+.machineStopped {
+  border-left-color: #c0392b;
+  background: #fff6f5;
+}
+
+.machineAlert {
+  border-left-color: #d18b16;
+  background: #fff9ef;
+}
+
 .header {
   display: flex;
   justify-content: space-between;
@@ -181,10 +200,6 @@
   padding: 10px 14px;
   font-weight: 700;
   cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    opacity 0.15s ease,
-    box-shadow 0.15s ease;
 }
 
 .primaryButton {
@@ -228,4 +243,16 @@
 .testTime {
   font-weight: 600;
   letter-spacing: 0.3px;
+}
+.deleteButton {
+  border: none;
+  background: transparent;
+  color: #c0392b;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.deleteButton:hover {
+  text-decoration: underline;
 }

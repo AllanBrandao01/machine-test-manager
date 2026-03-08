@@ -6,6 +6,8 @@
   padding: 20px;
   margin-bottom: 24px;
   box-shadow: 0 6px 18px rgba(27, 111, 106, 0.08);
+
+  max-width: 800px;
 }
 
 .header {
@@ -26,8 +28,8 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .fieldGroup {
@@ -51,6 +53,9 @@
   background: #fff;
   color: #243534;
   outline: none;
+
+  width: 100%;
+  max-width: 320px;
 }
 
 .input:focus,
@@ -73,10 +78,6 @@
   background: #1b6f6a;
   color: #ffffff;
   cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    opacity 0.15s ease,
-    box-shadow 0.15s ease;
 }
 
 .primaryButton:hover {

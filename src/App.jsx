@@ -100,6 +100,10 @@ function machinesReducer(state, action) {
       return [];
     }
 
+    case 'DELETE_MACHINE': {
+      return state.filter((machine) => machine.id !== action.payload);
+    }
+
     case 'UPDATE_MACHINE': {
       const { machineId, updates } = action.payload;
 
@@ -226,6 +230,19 @@ function App() {
     } catch (error) {
       alert(error.message);
     }
+  }
+
+  function handleDeleteMachine(machineId) {
+    const confirmed = window.confirm(
+      'Deseja realmente excluir esta máquina do controle?',
+    );
+
+    if (!confirmed) return;
+
+    dispatch({
+      type: 'DELETE_MACHINE',
+      payload: machineId,
+    });
   }
 
   // function for stoped machine
@@ -433,75 +450,177 @@ function App() {
     });
   }
 
+  const runningMachines = machines.filter((machine) => {
+    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
+    return lastBlock?.endTime === null;
+  }).length;
+
+  const stoppedMachines = machines.filter((machine) => {
+    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
+    return lastBlock?.endTime !== null;
+  }).length;
+
+  const lateTests = machines.reduce((total, machine) => {
+    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+
+    function toShiftMinutes(timeString) {
+      let mins = convertToMinutes(timeString);
+      if (isNightShift && mins < 18 * 60) mins += 1440;
+      return mins;
+    }
+
+    const now = new Date();
+    let nowMins = now.getHours() * 60 + now.getMinutes();
+    if (isNightShift && nowMins < 18 * 60) nowMins += 1440;
+
+    const currentBlock = machine.blocks?.[machine.blocks.length - 1];
+    if (!currentBlock || currentBlock.endTime !== null) return total;
+
+    const machineLateTests =
+      currentBlock.tests?.filter((test) => {
+        const testMins = toShiftMinutes(test.time);
+        return testMins < nowMins && !test.done;
+      }).length || 0;
+
+    return total + machineLateTests;
+  }, 0);
+
+  const completedTests = machines.reduce((total, machine) => {
+    const machineDone =
+      machine.blocks?.reduce((blockTotal, block) => {
+        const doneCount = block.tests?.filter((test) => test.done).length || 0;
+        return blockTotal + doneCount;
+      }, 0) || 0;
+
+    return total + machineDone;
+  }, 0);
+
+  const today = new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+
   // --- RETURN ---
   return (
     <>
-      {/* BOTÃO LIMPAR TELA / NOVO TURNO */}
-      <button
-        onClick={() => {
-          if (
-            window.confirm('Deseja limpar todas as máquinas para o novo turno?')
-          ) {
-            dispatch({ type: 'CLEAR_ALL' });
-            setCode('');
-            setMaterial('');
-            setFrequency(2);
-            setFirstTest('06:00');
-            setShift('A');
-          }
-        }}
-        style={{ marginBottom: '20px' }}
-      >
-        Limpar Tela / Novo Turno
-      </button>
+      <div className="appContainer">
+        <div>
+          <div className="appHeader">
+            <div>
+              <h1 className="appTitle">Controle de testes de qualidade</h1>
+              <p className="appSubtitle">Machine Test Scheduler</p>
+            </div>
 
-      {/* FORMULÁRIO */}
-      <MachineForm
-        code={code}
-        setCode={setCode}
-        material={material}
-        setMaterial={setMaterial}
-        frequency={frequency}
-        setFrequency={setFrequency}
-        firstTest={firstTest}
-        setFirstTest={setFirstTest}
-        shift={shift}
-        setShift={setShift}
-        onCreate={() =>
-          handleAddMachine({
-            code,
-            material,
-            frequency,
-            firstTest,
-            shift,
-          })
-        }
-      />
+            <div className="appInfo">
+              <span>Turno atual: {shift}</span>
+              <span>{today}</span>
+            </div>
+          </div>
+          <div className="dashboardSummary">
+            <div className="summaryCard summaryCardRunning">
+              <span className="summaryLabel">Máquinas rodando</span>
+              <strong className="summaryValue">{runningMachines}</strong>
+            </div>
 
-      <div className="machinesGrid">
-        {machines?.map((machine) => (
-          <MachineCard
-            key={machine.id}
-            machine={machine}
-            convertToMinutes={convertToMinutes}
-            onStop={(id) => {
-              const stopTime = prompt('Digite o horário da parada (HH:MM)');
-              const reason = prompt('Motivo da parada?');
+            <div className="summaryCard summaryCardStopped">
+              <span className="summaryLabel">Máquinas paradas</span>
+              <strong className="summaryValue">{stoppedMachines}</strong>
+            </div>
 
-              if (stopTime && reason) {
-                handleStopMachine(id, stopTime, reason);
+            <div className="summaryCard summaryCardLate">
+              <span className="summaryLabel">Testes atrasados</span>
+              <strong className="summaryValue">{lateTests}</strong>
+            </div>
+
+            <div className="summaryCard summaryCardDone">
+              <span className="summaryLabel">Testes concluídos</span>
+              <strong className="summaryValue">{completedTests}</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* BOTÃO LIMPAR TELA */}
+        <div className="sectionBar">
+          <button
+            className="resetButton"
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Deseja limpar todas as máquinas para o novo turno?',
+                )
+              ) {
+                dispatch({ type: 'CLEAR_ALL' });
+                setCode('');
+                setMaterial('');
+                setFrequency(2);
+                setFirstTest('06:00');
+                setShift('A');
               }
             }}
-            onResume={(id) => {
-              const resumeTime = prompt('Digite o horário de retorno (HH:MM)');
-              if (resumeTime) {
-                handleResumeMachine(id, resumeTime);
-              }
-            }}
-            onUpdate={handleUpdateMachine}
-            onCompleteNext={handleCompleteNextTest}
+          >
+            Iniciar novo turno
+          </button>
+        </div>
+
+        {/* FORMULÁRIO */}
+        <div className="formSection">
+          <MachineForm
+            code={code}
+            setCode={setCode}
+            material={material}
+            setMaterial={setMaterial}
+            frequency={frequency}
+            setFrequency={setFrequency}
+            firstTest={firstTest}
+            setFirstTest={setFirstTest}
+            shift={shift}
+            setShift={setShift}
+            onCreate={() =>
+              handleAddMachine({
+                code,
+                material,
+                frequency,
+                firstTest,
+                shift,
+              })
+            }
           />
-        ))}
+        </div>
+
+        <div className="sectionHeader">
+          <h2 className="sectionTitle">Máquinas em monitoramento</h2>
+          <p className="sectionSubtitle">Acompanhe o status dos testes.</p>
+        </div>
+
+        <div className="machinesGrid">
+          {machines?.map((machine) => (
+            <MachineCard
+              key={machine.id}
+              machine={machine}
+              convertToMinutes={convertToMinutes}
+              onStop={(id) => {
+                const stopTime = prompt('Digite o horário da parada (HH:MM)');
+                const reason = prompt('Motivo da parada?');
+
+                if (stopTime && reason) {
+                  handleStopMachine(id, stopTime, reason);
+                }
+              }}
+              onResume={(id) => {
+                const resumeTime = prompt(
+                  'Digite o horário de retorno (HH:MM)',
+                );
+                if (resumeTime) {
+                  handleResumeMachine(id, resumeTime);
+                }
+              }}
+              onUpdate={handleUpdateMachine}
+              onCompleteNext={handleCompleteNextTest}
+              onDelete={handleDeleteMachine}
+            />
+          ))}
+        </div>
       </div>
     </>
   );
