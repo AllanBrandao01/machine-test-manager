@@ -162,6 +162,7 @@ function App() {
   const [material, setMaterial] = useState('');
   const [frequency, setFrequency] = useState(2);
   const [firstTest, setFirstTest] = useState('06:00');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [shift, setShift] = useState('A');
   const [machines, dispatch] = useReducer(machinesReducer, undefined, () => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -501,6 +502,38 @@ function App() {
     year: 'numeric',
   });
 
+  const filteredMachines = machines.filter((machine) => {
+    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
+    const isRunning = lastBlock?.endTime === null;
+
+    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+
+    function toShiftMinutes(timeString) {
+      let mins = convertToMinutes(timeString);
+      if (isNightShift && mins < 18 * 60) mins += 1440;
+      return mins;
+    }
+
+    const now = new Date();
+    let nowMins = now.getHours() * 60 + now.getMinutes();
+    if (isNightShift && nowMins < 18 * 60) nowMins += 1440;
+
+    const currentBlock = machine.blocks?.[machine.blocks.length - 1];
+
+    const hasLateTest =
+      isRunning &&
+      currentBlock?.tests?.some((test) => {
+        const testMins = toShiftMinutes(test.time);
+        return testMins < nowMins && !test.done;
+      });
+
+    if (statusFilter === 'running') return isRunning;
+    if (statusFilter === 'stopped') return !isRunning;
+    if (statusFilter === 'late') return hasLateTest;
+
+    return true;
+  });
+
   // --- RETURN ---
   return (
     <>
@@ -587,6 +620,54 @@ function App() {
             }
           />
         </div>
+        <div className="filtersHeader">
+          <span>Filtrar máquinas:</span>
+        </div>
+        <div className="filtersBar">
+          <button
+            className={
+              statusFilter === 'all'
+                ? 'filterButton activeFilter'
+                : 'filterButton'
+            }
+            onClick={() => setStatusFilter('all')}
+          >
+            Todas
+          </button>
+
+          <button
+            className={
+              statusFilter === 'running'
+                ? 'filterButton activeFilter'
+                : 'filterButton'
+            }
+            onClick={() => setStatusFilter('running')}
+          >
+            Rodando
+          </button>
+
+          <button
+            className={
+              statusFilter === 'stopped'
+                ? 'filterButton activeFilter'
+                : 'filterButton'
+            }
+            onClick={() => setStatusFilter('stopped')}
+          >
+            Parada
+          </button>
+
+          <button
+            className={
+              statusFilter === 'late'
+                ? 'filterButton activeFilter'
+                : 'filterButton'
+            }
+            onClick={() => setStatusFilter('late')}
+          >
+            Atrasado
+          </button>
+        </div>
 
         <div className="sectionHeader">
           <h2 className="sectionTitle">Máquinas em monitoramento</h2>
@@ -594,7 +675,7 @@ function App() {
         </div>
 
         <div className="machinesGrid">
-          {machines?.map((machine) => (
+          {filteredMachines?.map((machine) => (
             <MachineCard
               key={machine.id}
               machine={machine}
