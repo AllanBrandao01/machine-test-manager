@@ -189,7 +189,7 @@ function App() {
       }
 
       if (!machineData.material.trim()) {
-        alert('Informe o material.');
+        alert('Informe o nome do material.');
         return;
       }
       const normalizedFirstTest = formatTimeInput(machineData.firstTest);
@@ -204,7 +204,7 @@ function App() {
       );
 
       if (alreadyExists) {
-        alert('Machine code already exists');
+        alert('Código da Máquina ja existe');
         return;
       }
       const schedule = generateSchedule(

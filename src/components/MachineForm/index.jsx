@@ -53,10 +53,7 @@ function MachineForm({
             onChange={(e) => setMaterial(e.target.value)}
             onBlur={() => {
               const value = material.trim().toUpperCase();
-              if (!value) {
-                alert('Material não pode ficar vazio');
-                return;
-              }
+
               setMaterial(value);
             }}
           />
