@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import styles from './index.module.css';
+import { toShiftMinutes, getNowShiftMinutes } from '../../utils/shift';
 
 function MachineCard({
   machine,
-  convertToMinutes,
   onStop,
   onResume,
   onUpdate,
   onCompleteNext,
   onDelete,
 }) {
-  const isNightShift = machine.shift === 'B' || machine.shift === 'D';
-
   const lastBlock = machine.blocks?.[machine.blocks.length - 1];
   const isRunning = lastBlock?.endTime === null;
 
@@ -23,24 +21,7 @@ function MachineCard({
 
   const nextTestTime = currentBlock?.tests?.find((t) => !t.done)?.time ?? null;
 
-  function toShiftMinutes(timeString) {
-    let mins = convertToMinutes(timeString);
-
-    if (isNightShift && mins < 18 * 60) mins += 1440;
-
-    return mins;
-  }
-
-  function nowShiftMinutes() {
-    const now = new Date();
-    let mins = now.getHours() * 60 + now.getMinutes();
-
-    if (isNightShift && mins < 18 * 60) mins += 1440;
-
-    return mins;
-  }
-
-  const nowMins = nowShiftMinutes();
+  const nowMins = getNowShiftMinutes(machine.shift);
 
   function startEdit() {
     setEditMaterial(machine.material || '');
