@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from 'react';
-import { convertToMinutes, formatTimeInput } from './utils/time';
+import { formatTimeInput, convertToTimeString } from './utils/time';
+import { toShiftMinutes, getNowShiftMinutes } from './utils/shift';
 import MachineForm from './components/MachineForm';
 import MachineCard from './components/MachineCard';
 import { generateSchedule } from './utils/schedule';
@@ -17,7 +18,7 @@ function machinesReducer(state, action) {
     }
 
     case 'STOP_MACHINE': {
-      const { machineId, stopTime, reason, convertToMinutes } = action.payload;
+      const { machineId, stopTime, reason } = action.payload;
 
       return state.map((machine) => {
         if (machine.id !== machineId) return machine;
@@ -25,22 +26,12 @@ function machinesReducer(state, action) {
         const lastBlockIndex = machine.blocks.length - 1;
         const lastBlock = machine.blocks[lastBlockIndex];
 
-        // already stopped
         if (lastBlock.endTime !== null) return machine;
 
-        const isNightShift = machine.shift === 'B' || machine.shift === 'D';
+        const stopMinutes = toShiftMinutes(stopTime, machine.shift);
 
-        function toShiftMinutes(timeString) {
-          let mins = convertToMinutes(timeString);
-          if (isNightShift && mins < 18 * 60) mins += 1440;
-          return mins;
-        }
-
-        const stopMinutes = toShiftMinutes(stopTime);
-
-        //truncate pending tests correctly (shift-aware)
         const truncatedTests = (lastBlock.tests || []).filter((t) => {
-          const tMinutes = toShiftMinutes(t.time);
+          const tMinutes = toShiftMinutes(t.time, machine.shift);
           return tMinutes <= stopMinutes;
         });
 
@@ -60,7 +51,7 @@ function machinesReducer(state, action) {
     }
 
     case 'RESUME_MACHINE': {
-      const { machineId, newBlock, convertToMinutes } = action.payload;
+      const { machineId, newBlock } = action.payload;
 
       return state.map((machine) => {
         if (machine.id !== machineId) return machine;
@@ -68,22 +59,12 @@ function machinesReducer(state, action) {
         const lastBlockIndex = machine.blocks.length - 1;
         const lastBlock = machine.blocks[lastBlockIndex];
 
-        // already running
         if (lastBlock.endTime === null) return machine;
 
-        const isNightShift = machine.shift === 'B' || machine.shift === 'D';
-
-        function toShiftMinutes(timeString) {
-          let mins = convertToMinutes(timeString);
-          if (isNightShift && mins < 18 * 60) mins += 1440;
-          return mins;
-        }
-
-        //guarantee truncation using lastBlock.endTime (shift-aware)
-        const stopMinutes = toShiftMinutes(lastBlock.endTime);
+        const stopMinutes = toShiftMinutes(lastBlock.endTime, machine.shift);
 
         const truncatedTests = (lastBlock.tests || []).filter((t) => {
-          const tMinutes = toShiftMinutes(t.time);
+          const tMinutes = toShiftMinutes(t.time, machine.shift);
           return tMinutes <= stopMinutes;
         });
 
@@ -208,7 +189,7 @@ function App() {
       );
 
       if (alreadyExists) {
-        alert('Código da Máquina ja existe');
+        alert('Código da Máquina já existe');
         return;
       }
       const schedule = generateSchedule(
@@ -267,13 +248,13 @@ function App() {
     const lastBlock = machine.blocks[machine.blocks.length - 1];
 
     if (lastBlock.endTime !== null) {
-      alert('Machine is already stopped');
+      alert('A máquina já está parada');
       return;
     }
 
     const formattedStopTime = formatTimeInput(stopTime);
     if (!formattedStopTime) {
-      alert('Invalid stop time');
+      alert('Horário de parada inválido');
       return;
     }
 
@@ -283,7 +264,6 @@ function App() {
         machineId,
         stopTime: formattedStopTime,
         reason,
-        convertToMinutes,
       },
     });
   }
@@ -295,13 +275,13 @@ function App() {
     const lastBlock = machine.blocks[machine.blocks.length - 1];
 
     if (lastBlock.endTime === null) {
-      alert('Machine is already running');
+      alert('A máquina já está em funcionamento');
       return;
     }
 
     const formattedResumeTime = formatTimeInput(resumeTime);
     if (!formattedResumeTime) {
-      alert('Invalid resume time');
+      alert('Horário de retomada inválido');
       return;
     }
 
@@ -313,7 +293,7 @@ function App() {
       );
 
       if (!newSchedule.length) {
-        alert('No remaining tests for this shift');
+        alert('Não há mais testes restantes para este turno');
         return;
       }
 
@@ -325,7 +305,7 @@ function App() {
 
       dispatch({
         type: 'RESUME_MACHINE',
-        payload: { machineId, newBlock, convertToMinutes },
+        payload: { machineId, newBlock },
       });
     } catch (error) {
       alert(error.message);
@@ -337,7 +317,7 @@ function App() {
     if (!machine) return;
 
     if (typeof updates.frequency === 'number' && updates.frequency <= 0) {
-      alert('Frequency must be greater than 0');
+      alert('A frequência deve ser maior que 0');
       return;
     }
 
@@ -345,36 +325,23 @@ function App() {
     const lastBlock = machine.blocks[lastBlockIndex];
     const isRunning = lastBlock?.endTime === null;
 
-    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
-    function toShiftMinutes(timeString) {
-      let mins = convertToMinutes(timeString);
-      if (isNightShift && mins < 18 * 60) mins += 1440;
-      return mins;
-    }
-
-    // If frequency changed AND machine is running -> recalc remaining tests in current block
     const freqChanged =
       typeof updates.frequency === 'number' &&
       updates.frequency !== machine.frequency;
 
     if (isRunning && freqChanged) {
-      const now = new Date();
-      const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(
-        now.getMinutes(),
-      ).padStart(2, '0')}`;
+      const nowMins = getNowShiftMinutes(machine.shift);
+      const nowStr = convertToTimeString(nowMins % 1440);
 
-      const nowMins = toShiftMinutes(nowStr);
-
-      // Keep past tests
       const pastTests = (lastBlock.tests || []).filter(
-        (test) => toShiftMinutes(test.time) < nowMins,
+        (test) => toShiftMinutes(test.time, machine.shift) < nowMins,
       );
 
-      // Generate new future tests from "now" using the NEW frequency
       let futureTests = [];
+
       try {
         futureTests = generateSchedule(nowStr, updates.frequency, machine.shift)
-          .filter((time) => toShiftMinutes(time) >= nowMins)
+          .filter((time) => toShiftMinutes(time, machine.shift) >= nowMins)
           .map((time) => ({ time, done: false }));
       } catch (error) {
         alert(error.message);
@@ -417,34 +384,21 @@ function App() {
     const block = machine.blocks[blockIndex];
 
     if (block.endTime !== null) {
-      alert('Machine is stopped');
+      alert('A máquina está parada');
       return;
     }
 
     const nextPending = block.tests?.find((t) => !t.done);
     if (!nextPending) {
-      alert('All tests are done');
+      alert('Todos os testes foram concluídos');
       return;
     }
 
-    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
-    function toShiftMinutes(timeString) {
-      let mins = convertToMinutes(timeString);
-      if (isNightShift && mins < 18 * 60) mins += 1440;
-      return mins;
-    }
+    const nowMins = getNowShiftMinutes(machine.shift);
+    const nextMins = toShiftMinutes(nextPending.time, machine.shift);
 
-    const now = new Date();
-    const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(
-      now.getMinutes(),
-    ).padStart(2, '0')}`;
-
-    const nowMins = toShiftMinutes(nowStr);
-    const nextMins = toShiftMinutes(nextPending.time);
-
-    // não deixa concluir teste “no futuro”
     if (nextMins > nowMins) {
-      alert('Next test is not due yet');
+      alert('O próximo teste ainda não está no horário');
       return;
     }
 
@@ -556,7 +510,6 @@ function App() {
             <MachineCard
               key={machine.id}
               machine={machine}
-              convertToMinutes={convertToMinutes}
               onStop={(id) => {
                 const stopTime = prompt('Digite o horário da parada (HH:MM)');
                 const reason = prompt('Motivo da parada?');
