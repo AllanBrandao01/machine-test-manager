@@ -1,0 +1,42 @@
+.filtersHeader {
+  margin-bottom: 10px;
+}
+
+.filtersHeader span {
+  display: inline-block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1b6f6a;
+}
+
+.filtersBar {
+  display: inline-flex;
+  border: 1px solid #bfd5d2;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.filterButton {
+  border: none;
+  background: #ffffff;
+  color: #1b6f6a;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border-right: 1px solid #bfd5d2;
+  transition: all 0.15s ease;
+}
+
+.filterButton:last-child {
+  border-right: none;
+}
+
+.filterButton:hover {
+  background: #e8f3f2;
+}
+
+.activeFilter {
+  background: #1b6f6a;
+  color: #ffffff;
+}

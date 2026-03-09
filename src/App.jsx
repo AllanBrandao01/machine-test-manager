@@ -3,6 +3,10 @@ import { convertToMinutes, formatTimeInput } from './utils/time';
 import MachineForm from './components/MachineForm';
 import MachineCard from './components/MachineCard';
 import { generateSchedule } from './utils/schedule';
+import Filters from './components/Filters';
+import { filterMachines } from './utils/filters';
+import Dashboard from './components/Dashboard';
+import { getDashboardStats } from './utils/dashboard';
 
 const STORAGE_KEY = 'machine-test-manager:machines';
 
@@ -341,7 +345,6 @@ function App() {
     const lastBlock = machine.blocks[lastBlockIndex];
     const isRunning = lastBlock?.endTime === null;
 
-    // Helper: normalize minutes for night shift comparisons
     const isNightShift = machine.shift === 'B' || machine.shift === 'D';
     function toShiftMinutes(timeString) {
       let mins = convertToMinutes(timeString);
@@ -413,7 +416,6 @@ function App() {
     const blockIndex = machine.blocks.length - 1;
     const block = machine.blocks[blockIndex];
 
-    // só faz sentido concluir se estiver rodando
     if (block.endTime !== null) {
       alert('Machine is stopped');
       return;
@@ -425,7 +427,6 @@ function App() {
       return;
     }
 
-    // shift-aware compare (igual usamos antes)
     const isNightShift = machine.shift === 'B' || machine.shift === 'D';
     function toShiftMinutes(timeString) {
       let mins = convertToMinutes(timeString);
@@ -458,50 +459,8 @@ function App() {
     });
   }
 
-  const runningMachines = machines.filter((machine) => {
-    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
-    return lastBlock?.endTime === null;
-  }).length;
-
-  const stoppedMachines = machines.filter((machine) => {
-    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
-    return lastBlock?.endTime !== null;
-  }).length;
-
-  const lateTests = machines.reduce((total, machine) => {
-    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
-
-    function toShiftMinutes(timeString) {
-      let mins = convertToMinutes(timeString);
-      if (isNightShift && mins < 18 * 60) mins += 1440;
-      return mins;
-    }
-
-    const now = new Date();
-    let nowMins = now.getHours() * 60 + now.getMinutes();
-    if (isNightShift && nowMins < 18 * 60) nowMins += 1440;
-
-    const currentBlock = machine.blocks?.[machine.blocks.length - 1];
-    if (!currentBlock || currentBlock.endTime !== null) return total;
-
-    const machineLateTests =
-      currentBlock.tests?.filter((test) => {
-        const testMins = toShiftMinutes(test.time);
-        return testMins < nowMins && !test.done;
-      }).length || 0;
-
-    return total + machineLateTests;
-  }, 0);
-
-  const completedTests = machines.reduce((total, machine) => {
-    const machineDone =
-      machine.blocks?.reduce((blockTotal, block) => {
-        const doneCount = block.tests?.filter((test) => test.done).length || 0;
-        return blockTotal + doneCount;
-      }, 0) || 0;
-
-    return total + machineDone;
-  }, 0);
+  const { runningMachines, stoppedMachines, lateTests, completedTests } =
+    getDashboardStats(machines);
 
   const today = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -509,37 +468,7 @@ function App() {
     year: 'numeric',
   });
 
-  const filteredMachines = machines.filter((machine) => {
-    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
-    const isRunning = lastBlock?.endTime === null;
-
-    const isNightShift = machine.shift === 'B' || machine.shift === 'D';
-
-    function toShiftMinutes(timeString) {
-      let mins = convertToMinutes(timeString);
-      if (isNightShift && mins < 18 * 60) mins += 1440;
-      return mins;
-    }
-
-    const now = new Date();
-    let nowMins = now.getHours() * 60 + now.getMinutes();
-    if (isNightShift && nowMins < 18 * 60) nowMins += 1440;
-
-    const currentBlock = machine.blocks?.[machine.blocks.length - 1];
-
-    const hasLateTest =
-      isRunning &&
-      currentBlock?.tests?.some((test) => {
-        const testMins = toShiftMinutes(test.time);
-        return testMins < nowMins && !test.done;
-      });
-
-    if (statusFilter === 'running') return isRunning;
-    if (statusFilter === 'stopped') return !isRunning;
-    if (statusFilter === 'late') return hasLateTest;
-
-    return true;
-  });
+  const filteredMachines = filterMachines(machines, statusFilter);
 
   // --- RETURN ---
   return (
@@ -557,27 +486,12 @@ function App() {
               <span>{today}</span>
             </div>
           </div>
-          <div className="dashboardSummary">
-            <div className="summaryCard summaryCardRunning">
-              <span className="summaryLabel">Máquinas rodando</span>
-              <strong className="summaryValue">{runningMachines}</strong>
-            </div>
-
-            <div className="summaryCard summaryCardStopped">
-              <span className="summaryLabel">Máquinas paradas</span>
-              <strong className="summaryValue">{stoppedMachines}</strong>
-            </div>
-
-            <div className="summaryCard summaryCardLate">
-              <span className="summaryLabel">Testes atrasados</span>
-              <strong className="summaryValue">{lateTests}</strong>
-            </div>
-
-            <div className="summaryCard summaryCardDone">
-              <span className="summaryLabel">Testes concluídos</span>
-              <strong className="summaryValue">{completedTests}</strong>
-            </div>
-          </div>
+          <Dashboard
+            runningMachines={runningMachines}
+            stoppedMachines={stoppedMachines}
+            lateTests={lateTests}
+            completedTests={completedTests}
+          />
         </div>
 
         {/* BOTÃO LIMPAR TELA */}
@@ -627,54 +541,10 @@ function App() {
             }
           />
         </div>
-        <div className="filtersHeader">
-          <span>Filtrar máquinas:</span>
-        </div>
-        <div className="filtersBar">
-          <button
-            className={
-              statusFilter === 'all'
-                ? 'filterButton activeFilter'
-                : 'filterButton'
-            }
-            onClick={() => setStatusFilter('all')}
-          >
-            Todas
-          </button>
-
-          <button
-            className={
-              statusFilter === 'running'
-                ? 'filterButton activeFilter'
-                : 'filterButton'
-            }
-            onClick={() => setStatusFilter('running')}
-          >
-            Rodando
-          </button>
-
-          <button
-            className={
-              statusFilter === 'stopped'
-                ? 'filterButton activeFilter'
-                : 'filterButton'
-            }
-            onClick={() => setStatusFilter('stopped')}
-          >
-            Parada
-          </button>
-
-          <button
-            className={
-              statusFilter === 'late'
-                ? 'filterButton activeFilter'
-                : 'filterButton'
-            }
-            onClick={() => setStatusFilter('late')}
-          >
-            Atrasado
-          </button>
-        </div>
+        <Filters
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+        />
 
         <div className="sectionHeader">
           <h2 className="sectionTitle">Máquinas em monitoramento</h2>

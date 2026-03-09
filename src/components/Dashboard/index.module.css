@@ -1,0 +1,65 @@
+.dashboardSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summaryCard {
+  background: #ffffff;
+  border: 1px solid #d7e6e4;
+  border-left: 6px solid #1b6f6a;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(27, 111, 106, 0.08);
+}
+
+.summaryLabel {
+  display: block;
+  color: #5f6b6a;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.summaryValue {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+/* variações */
+
+.summaryCardRunning {
+  border-left-color: #1b6f6a;
+  background: #ffffff;
+}
+
+.summaryCardRunning .summaryValue {
+  color: #1b6f6a;
+}
+
+.summaryCardStopped {
+  border-left-color: #c0392b;
+  background: #fff6f5;
+}
+
+.summaryCardStopped .summaryValue {
+  color: #c0392b;
+}
+
+.summaryCardLate {
+  border-left-color: #d18b16;
+  background: #fff9ef;
+}
+
+.summaryCardLate .summaryValue {
+  color: #b7791f;
+}
+
+.summaryCardDone {
+  border-left-color: #2f8f88;
+  background: #f3fbfa;
+}
+
+.summaryCardDone .summaryValue {
+  color: #2f8f88;
+}
