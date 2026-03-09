@@ -1,3 +1,4 @@
+import { supabase } from './services/supabase/supabaseClient';
 import { useEffect, useReducer, useState } from 'react';
 import { formatTimeInput, convertToTimeString } from './utils/time';
 import { toShiftMinutes, getNowShiftMinutes } from './utils/shift';
@@ -13,6 +14,9 @@ const STORAGE_KEY = 'machine-test-manager:machines';
 
 function machinesReducer(state, action) {
   switch (action.type) {
+    case 'SET_MACHINES': {
+      return action.payload;
+    }
     case 'ADD_MACHINE': {
       return [...state, action.payload];
     }
@@ -128,20 +132,6 @@ function machinesReducer(state, action) {
   }
 }
 
-function normalizeMachines(data) {
-  if (!Array.isArray(data)) return [];
-
-  return data.map((m) => ({
-    ...m,
-    blocks: (m.blocks || []).map((b) => ({
-      ...b,
-      tests: (b.tests || []).map((t) =>
-        typeof t === 'string' ? { time: t, done: false } : t,
-      ),
-    })),
-  }));
-}
-
 function App() {
   const [code, setCode] = useState('');
   const [material, setMaterial] = useState('');
@@ -149,24 +139,48 @@ function App() {
   const [firstTest, setFirstTest] = useState('06:00');
   const [statusFilter, setStatusFilter] = useState('all');
   const [shift, setShift] = useState('A');
-  const [machines, dispatch] = useReducer(machinesReducer, undefined, () => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return [];
-
-    try {
-      const parsed = JSON.parse(saved);
-      return normalizeMachines(parsed);
-    } catch {
-      return [];
-    }
-  });
+  const [machines, dispatch] = useReducer(machinesReducer, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(machines));
-  }, [machines]);
+    async function fetchMachines() {
+      const { data, error } = await supabase.from('machines').select('*');
+
+      if (error) {
+        console.error('Erro ao buscar máquinas:', error);
+        return;
+      }
+
+      const machinesFromDB = data.map((machine) => {
+        const schedule = generateSchedule(
+          machine.first_test,
+          machine.frequency,
+          machine.shift,
+        );
+
+        return {
+          ...machine,
+          blocks: [
+            {
+              startTime: machine.first_test,
+              endTime: null,
+              tests: schedule.map((t) => ({ time: t, done: false })),
+            },
+          ],
+          stops: [],
+        };
+      });
+
+      dispatch({
+        type: 'SET_MACHINES',
+        payload: machinesFromDB,
+      });
+    }
+
+    fetchMachines();
+  }, []);
 
   // add machine
-  function handleAddMachine(machineData) {
+  async function handleAddMachine(machineData) {
     try {
       if (!machineData.code.trim()) {
         alert('Informe o nome da máquina.');
@@ -177,11 +191,13 @@ function App() {
         alert('Informe o nome do material.');
         return;
       }
+
       const normalizedFirstTest = formatTimeInput(machineData.firstTest);
       if (!normalizedFirstTest) {
         alert('Invalid first test time');
         return;
       }
+
       const normalizedCode = machineData.code.trim().toUpperCase();
 
       const alreadyExists = machines.some(
@@ -192,21 +208,40 @@ function App() {
         alert('Código da Máquina já existe');
         return;
       }
+
       const schedule = generateSchedule(
-        machineData.firstTest,
+        normalizedFirstTest,
         machineData.frequency,
         machineData.shift,
       );
 
+      const { data, error } = await supabase
+        .from('machines')
+        .insert([
+          {
+            name: normalizedCode,
+            code: normalizedCode,
+            material: machineData.material.trim(),
+            frequency: machineData.frequency,
+            first_test: normalizedFirstTest,
+            shift: machineData.shift,
+            is_active: true,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        alert('Erro ao salvar máquina no banco.');
+        console.error(error);
+        return;
+      }
+
       const newMachine = {
-        id: crypto.randomUUID(),
-        code: machineData.code,
-        material: machineData.material,
-        frequency: machineData.frequency,
-        shift: machineData.shift,
+        ...data,
         blocks: [
           {
-            startTime: machineData.firstTest,
+            startTime: normalizedFirstTest,
             endTime: null,
             tests: schedule.map((t) => ({ time: t, done: false })),
           },
@@ -216,7 +251,6 @@ function App() {
 
       dispatch({ type: 'ADD_MACHINE', payload: newMachine });
 
-      // clean inputs
       setCode('');
       setMaterial('');
       setFrequency(2);
@@ -241,7 +275,7 @@ function App() {
   }
 
   // function for stoped machine
-  function handleStopMachine(machineId, stopTime, reason) {
+  async function handleStopMachine(machineId, stopTime, reason) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
 
@@ -258,6 +292,27 @@ function App() {
       return;
     }
 
+    const now = new Date();
+    const [hours, minutes] = formattedStopTime.split(':');
+
+    const stopDate = new Date(now);
+    stopDate.setHours(Number(hours), Number(minutes), 0, 0);
+
+    const { error } = await supabase.from('stops').insert([
+      {
+        machine_id: machineId,
+        stop_time: stopDate.toISOString(),
+        reason: reason.trim(),
+        shift: machine.shift,
+      },
+    ]);
+
+    if (error) {
+      alert('Erro ao salvar parada no banco');
+      console.error(error);
+      return;
+    }
+
     dispatch({
       type: 'STOP_MACHINE',
       payload: {
@@ -268,7 +323,7 @@ function App() {
     });
   }
 
-  function handleResumeMachine(machineId, resumeTime) {
+  async function handleResumeMachine(machineId, resumeTime) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
 
@@ -294,6 +349,45 @@ function App() {
 
       if (!newSchedule.length) {
         alert('Não há mais testes restantes para este turno');
+        return;
+      }
+
+      const now = new Date();
+      const [hours, minutes] = formattedResumeTime.split(':');
+
+      const resumeDate = new Date(now);
+      resumeDate.setHours(Number(hours), Number(minutes), 0, 0);
+
+      const { data: openStop, error: fetchError } = await supabase
+        .from('stops')
+        .select('*')
+        .eq('machine_id', machineId)
+        .is('resume_time', null)
+        .order('stop_time', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error(fetchError);
+        alert('Erro ao buscar parada em aberto');
+        return;
+      }
+
+      if (!openStop) {
+        alert('Nenhuma parada em aberto encontrada para esta máquina');
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from('stops')
+        .update({
+          resume_time: resumeDate.toISOString(),
+        })
+        .eq('id', openStop.id);
+
+      if (updateError) {
+        console.error(updateError);
+        alert('Erro ao salvar retomada no banco');
         return;
       }
 
