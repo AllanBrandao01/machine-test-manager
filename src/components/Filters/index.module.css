@@ -37,6 +37,10 @@
 }
 
 .activeFilter {
-  background: #1b6f6a;
+  background: #3b6c69;
   color: #ffffff;
+}
+
+.activeFilter:hover {
+  color: #1b6f6a;
 }
