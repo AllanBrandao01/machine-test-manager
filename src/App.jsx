@@ -141,9 +141,44 @@ function App() {
   const [shift, setShift] = useState('A');
   const [machines, dispatch] = useReducer(machinesReducer, []);
 
+  async function fetchActiveShiftSession() {
+    const { data, error } = await supabase
+      .from('shift_sessions')
+      .select('*')
+      .eq('is_active', true)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao buscar turno ativo:', error);
+      return null;
+    }
+
+    if (!data) {
+      return null;
+    }
+  }
+
   useEffect(() => {
     async function fetchMachines() {
-      const { data, error } = await supabase.from('machines').select('*');
+      const shiftSessionId = await fetchActiveShiftSession();
+
+      if (!shiftSessionId) {
+        dispatch({ type: 'SET_MACHINES', payload: [] });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('machines')
+        .select(
+          `
+        *,
+        tests (*),
+        stops (*)
+      `,
+        )
+        .eq('shift_session_id', shiftSessionId);
 
       if (error) {
         console.error('Erro ao buscar máquinas:', error);
@@ -157,16 +192,30 @@ function App() {
           machine.shift,
         );
 
+        const completedTimes = (machine.tests || []).map((test) => {
+          const date = new Date(test.test_time);
+
+          return date.toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'America/Sao_Paulo',
+          });
+        });
+
         return {
           ...machine,
           blocks: [
             {
               startTime: machine.first_test,
               endTime: null,
-              tests: schedule.map((t) => ({ time: t, done: false })),
+              tests: schedule.map((time) => ({
+                time,
+                done: completedTimes.includes(time),
+              })),
             },
           ],
-          stops: [],
+          stops: machine.stops || [],
         };
       });
 
@@ -178,6 +227,23 @@ function App() {
 
     fetchMachines();
   }, []);
+
+  async function getActiveShiftSessionId() {
+    const { data, error } = await supabase
+      .from('shift_sessions')
+      .select('id')
+      .eq('is_active', true)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao buscar turno ativo:', error);
+      return null;
+    }
+
+    return data?.id ?? null;
+  }
 
   // add machine
   async function handleAddMachine(machineData) {
@@ -214,7 +280,7 @@ function App() {
         machineData.frequency,
         machineData.shift,
       );
-
+      const shiftSessionId = await getActiveShiftSessionId();
       const { data, error } = await supabase
         .from('machines')
         .insert([
@@ -226,6 +292,7 @@ function App() {
             first_test: normalizedFirstTest,
             shift: machineData.shift,
             is_active: true,
+            shift_session_id: shiftSessionId,
           },
         ])
         .select()
@@ -298,12 +365,15 @@ function App() {
     const stopDate = new Date(now);
     stopDate.setHours(Number(hours), Number(minutes), 0, 0);
 
+    const shiftSessionId = await getActiveShiftSessionId();
+
     const { error } = await supabase.from('stops').insert([
       {
         machine_id: machineId,
         stop_time: stopDate.toISOString(),
         reason: reason.trim(),
         shift: machine.shift,
+        shift_session_id: shiftSessionId,
       },
     ]);
 
@@ -470,7 +540,7 @@ function App() {
     });
   }
 
-  function handleCompleteNextTest(machineId) {
+  async function handleCompleteNextTest(machineId) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
 
@@ -496,6 +566,30 @@ function App() {
       return;
     }
 
+    const now = new Date();
+    const [hours, minutes] = nextPending.time.split(':');
+
+    const testDate = new Date(now);
+    testDate.setHours(Number(hours), Number(minutes), 0, 0);
+
+    const shiftSessionId = await getActiveShiftSessionId();
+
+    const { error } = await supabase.from('tests').insert([
+      {
+        machine_id: machineId,
+        test_time: testDate.toISOString(),
+        shift: machine.shift,
+        notes: 'Teste concluído pelo operador',
+        shift_session_id: shiftSessionId,
+      },
+    ]);
+
+    if (error) {
+      console.error(error);
+      alert('Erro ao salvar teste no banco');
+      return;
+    }
+
     dispatch({
       type: 'SET_TEST_DONE',
       payload: {
@@ -517,6 +611,73 @@ function App() {
   });
 
   const filteredMachines = filterMachines(machines, statusFilter);
+
+  async function handleStartNewShift() {
+    const confirmed = window.confirm('Deseja iniciar um novo turno?');
+
+    if (!confirmed) return;
+
+    try {
+      const { data: currentShift, error: currentShiftError } = await supabase
+        .from('shift_sessions')
+        .select('*')
+        .eq('is_active', true)
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (currentShiftError) {
+        console.error(currentShiftError);
+        alert('Erro ao buscar o turno atual.');
+        return;
+      }
+
+      if (currentShift) {
+        const { error: deactivateError } = await supabase
+          .from('shift_sessions')
+          .update({ is_active: false })
+          .eq('id', currentShift.id);
+
+        if (deactivateError) {
+          console.error(deactivateError);
+          alert('Erro ao encerrar o turno atual.');
+          return;
+        }
+      }
+
+      const now = new Date();
+
+      const shiftName = `Turno ${now.toLocaleString('pt-BR')}`;
+
+      const { error: createError } = await supabase
+        .from('shift_sessions')
+        .insert([
+          {
+            name: shiftName,
+            is_active: true,
+          },
+        ]);
+
+      if (createError) {
+        console.error(createError);
+        alert('Erro ao criar novo turno.');
+        return;
+      }
+
+      dispatch({ type: 'SET_MACHINES', payload: [] });
+
+      setCode('');
+      setMaterial('');
+      setFrequency(2);
+      setFirstTest('06:00');
+      setShift('A');
+
+      alert('Novo turno iniciado com sucesso.');
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao iniciar novo turno.');
+    }
+  }
 
   // --- RETURN ---
   return (
@@ -544,23 +705,7 @@ function App() {
 
         {/* BOTÃO LIMPAR TELA */}
         <div className="sectionBar">
-          <button
-            className="resetButton"
-            onClick={() => {
-              if (
-                window.confirm(
-                  'Deseja limpar todas as máquinas para o novo turno?',
-                )
-              ) {
-                dispatch({ type: 'CLEAR_ALL' });
-                setCode('');
-                setMaterial('');
-                setFrequency(2);
-                setFirstTest('06:00');
-                setShift('A');
-              }
-            }}
-          >
+          <button className="resetButton" onClick={handleStartNewShift}>
             Iniciar novo turno
           </button>
         </div>

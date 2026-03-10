@@ -1,4 +1,3 @@
-// src/utils/schedule.js
 import { convertToMinutes, convertToTimeString } from './time';
 
 export function getShiftWindow(shift) {
