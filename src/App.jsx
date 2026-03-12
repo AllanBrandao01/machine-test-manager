@@ -9,8 +9,9 @@ import Filters from './components/Filters';
 import { filterMachines } from './utils/filters';
 import Dashboard from './components/Dashboard';
 import { getDashboardStats } from './utils/dashboard';
-
-const STORAGE_KEY = 'machine-test-manager:machines';
+import ModalConfirm from './components/ModalConfirm';
+import ModalStopMachine from './components/ModalStopMachine';
+import ModalResumeMachine from './components/ModalResumeMachine';
 
 function machinesReducer(state, action) {
   switch (action.type) {
@@ -139,7 +140,36 @@ function App() {
   const [firstTest, setFirstTest] = useState('06:00');
   const [statusFilter, setStatusFilter] = useState('all');
   const [shift, setShift] = useState('A');
+  const [errors, setErrors] = useState({});
+  const [stopModal, setStopModal] = useState({
+    open: false,
+    machineId: null,
+  });
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    machineId: null,
+  });
+  const [feedback, setFeedback] = useState(null);
   const [machines, dispatch] = useReducer(machinesReducer, []);
+  const [resumeModal, setResumeModal] = useState({
+    open: false,
+    machineId: null,
+  });
+  const [newShiftModal, setNewShiftModal] = useState(false);
+
+  function showFeedback(type, message) {
+    setFeedback({ type, message });
+  }
+
+  function clearFieldError(field) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+
+      const updated = { ...prev };
+      delete updated[field];
+      return updated;
+    });
+  }
 
   async function fetchActiveShiftSession() {
     const { data, error } = await supabase
@@ -158,6 +188,8 @@ function App() {
     if (!data) {
       return null;
     }
+
+    return data.id;
   }
 
   useEffect(() => {
@@ -182,6 +214,7 @@ function App() {
 
       if (error) {
         console.error('Erro ao buscar máquinas:', error);
+        showFeedback('error', 'Erro ao buscar máquinas.');
         return;
       }
 
@@ -245,23 +278,29 @@ function App() {
     return data?.id ?? null;
   }
 
-  // add machine
   async function handleAddMachine(machineData) {
     try {
+      const newErrors = {};
+
       if (!machineData.code.trim()) {
-        alert('Informe o nome da máquina.');
-        return;
+        newErrors.code = 'Informe o nome da máquina.';
       }
 
       if (!machineData.material.trim()) {
-        alert('Informe o nome do material.');
-        return;
+        newErrors.material = 'Informe o nome do material.';
+      }
+
+      if (
+        typeof machineData.frequency !== 'number' ||
+        machineData.frequency <= 0
+      ) {
+        newErrors.frequency = 'A frequência deve ser maior que 0.';
       }
 
       const normalizedFirstTest = formatTimeInput(machineData.firstTest);
+
       if (!normalizedFirstTest) {
-        alert('Invalid first test time');
-        return;
+        newErrors.firstTest = 'Horário do primeiro teste inválido.';
       }
 
       const normalizedCode = machineData.code.trim().toUpperCase();
@@ -271,16 +310,25 @@ function App() {
       );
 
       if (alreadyExists) {
-        alert('Código da Máquina já existe');
+        newErrors.code = 'Código da máquina já existe.';
+      }
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
         return;
       }
+
+      setErrors({});
+      setFeedback(null);
 
       const schedule = generateSchedule(
         normalizedFirstTest,
         machineData.frequency,
         machineData.shift,
       );
+
       const shiftSessionId = await getActiveShiftSessionId();
+
       const { data, error } = await supabase
         .from('machines')
         .insert([
@@ -299,8 +347,8 @@ function App() {
         .single();
 
       if (error) {
-        alert('Erro ao salvar máquina no banco.');
         console.error(error);
+        showFeedback('error', 'Erro ao salvar máquina no banco.');
         return;
       }
 
@@ -323,25 +371,30 @@ function App() {
       setFrequency(2);
       setFirstTest('06:00');
       setShift('A');
+      setErrors({});
+      showFeedback('success', 'Máquina criada com sucesso.');
     } catch (error) {
-      alert(error.message);
+      showFeedback('error', error.message || 'Erro ao criar máquina.');
     }
   }
 
   function handleDeleteMachine(machineId) {
-    const confirmed = window.confirm(
-      'Deseja realmente excluir esta máquina do controle?',
-    );
-
-    if (!confirmed) return;
-
-    dispatch({
-      type: 'DELETE_MACHINE',
-      payload: machineId,
+    setDeleteModal({
+      open: true,
+      machineId,
     });
   }
+  function confirmDeleteMachine() {
+    dispatch({
+      type: 'DELETE_MACHINE',
+      payload: deleteModal.machineId,
+    });
 
-  // function for stoped machine
+    setDeleteModal({ open: false, machineId: null });
+
+    showFeedback('success', 'Máquina excluída com sucesso.');
+  }
+
   async function handleStopMachine(machineId, stopTime, reason) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
@@ -349,13 +402,13 @@ function App() {
     const lastBlock = machine.blocks[machine.blocks.length - 1];
 
     if (lastBlock.endTime !== null) {
-      alert('A máquina já está parada');
+      showFeedback('warning', 'A máquina já está parada.');
       return;
     }
 
     const formattedStopTime = formatTimeInput(stopTime);
     if (!formattedStopTime) {
-      alert('Horário de parada inválido');
+      showFeedback('error', 'Horário de parada inválido.');
       return;
     }
 
@@ -378,8 +431,8 @@ function App() {
     ]);
 
     if (error) {
-      alert('Erro ao salvar parada no banco');
       console.error(error);
+      showFeedback('error', 'Erro ao salvar parada no banco.');
       return;
     }
 
@@ -391,6 +444,8 @@ function App() {
         reason,
       },
     });
+
+    showFeedback('success', 'Máquina parada com sucesso.');
   }
 
   async function handleResumeMachine(machineId, resumeTime) {
@@ -400,13 +455,13 @@ function App() {
     const lastBlock = machine.blocks[machine.blocks.length - 1];
 
     if (lastBlock.endTime === null) {
-      alert('A máquina já está em funcionamento');
+      showFeedback('warning', 'A máquina já está em funcionamento.');
       return;
     }
 
     const formattedResumeTime = formatTimeInput(resumeTime);
     if (!formattedResumeTime) {
-      alert('Horário de retomada inválido');
+      showFeedback('error', 'Horário de retomada inválido.');
       return;
     }
 
@@ -418,7 +473,10 @@ function App() {
       );
 
       if (!newSchedule.length) {
-        alert('Não há mais testes restantes para este turno');
+        showFeedback(
+          'warning',
+          'Não há mais testes restantes para este turno.',
+        );
         return;
       }
 
@@ -439,12 +497,15 @@ function App() {
 
       if (fetchError) {
         console.error(fetchError);
-        alert('Erro ao buscar parada em aberto');
+        showFeedback('error', 'Erro ao buscar parada em aberto.');
         return;
       }
 
       if (!openStop) {
-        alert('Nenhuma parada em aberto encontrada para esta máquina');
+        showFeedback(
+          'warning',
+          'Nenhuma parada em aberto encontrada para esta máquina.',
+        );
         return;
       }
 
@@ -457,7 +518,7 @@ function App() {
 
       if (updateError) {
         console.error(updateError);
-        alert('Erro ao salvar retomada no banco');
+        showFeedback('error', 'Erro ao salvar retomada no banco.');
         return;
       }
 
@@ -471,8 +532,10 @@ function App() {
         type: 'RESUME_MACHINE',
         payload: { machineId, newBlock },
       });
+
+      showFeedback('success', 'Máquina retomada com sucesso.');
     } catch (error) {
-      alert(error.message);
+      showFeedback('error', error.message || 'Erro ao retomar máquina.');
     }
   }
 
@@ -481,7 +544,7 @@ function App() {
     if (!machine) return;
 
     if (typeof updates.frequency === 'number' && updates.frequency <= 0) {
-      alert('A frequência deve ser maior que 0');
+      showFeedback('error', 'A frequência deve ser maior que 0.');
       return;
     }
 
@@ -508,7 +571,7 @@ function App() {
           .filter((time) => toShiftMinutes(time, machine.shift) >= nowMins)
           .map((time) => ({ time, done: false }));
       } catch (error) {
-        alert(error.message);
+        showFeedback('error', error.message);
         return;
       }
 
@@ -531,6 +594,7 @@ function App() {
         },
       });
 
+      showFeedback('success', 'Máquina atualizada com sucesso.');
       return;
     }
 
@@ -538,6 +602,8 @@ function App() {
       type: 'UPDATE_MACHINE',
       payload: { machineId, updates },
     });
+
+    showFeedback('success', 'Máquina atualizada com sucesso.');
   }
 
   async function handleCompleteNextTest(machineId) {
@@ -548,13 +614,13 @@ function App() {
     const block = machine.blocks[blockIndex];
 
     if (block.endTime !== null) {
-      alert('A máquina está parada');
+      showFeedback('warning', 'A máquina está parada.');
       return;
     }
 
     const nextPending = block.tests?.find((t) => !t.done);
     if (!nextPending) {
-      alert('Todos os testes foram concluídos');
+      showFeedback('warning', 'Todos os testes foram concluídos.');
       return;
     }
 
@@ -562,7 +628,7 @@ function App() {
     const nextMins = toShiftMinutes(nextPending.time, machine.shift);
 
     if (nextMins > nowMins) {
-      alert('O próximo teste ainda não está no horário');
+      showFeedback('warning', 'O próximo teste ainda não está no horário.');
       return;
     }
 
@@ -586,7 +652,7 @@ function App() {
 
     if (error) {
       console.error(error);
-      alert('Erro ao salvar teste no banco');
+      showFeedback('error', 'Erro ao salvar teste no banco.');
       return;
     }
 
@@ -599,6 +665,8 @@ function App() {
         done: true,
       },
     });
+
+    showFeedback('success', 'Teste concluído com sucesso.');
   }
 
   const { runningMachines, stoppedMachines, lateTests, completedTests } =
@@ -613,10 +681,6 @@ function App() {
   const filteredMachines = filterMachines(machines, statusFilter);
 
   async function handleStartNewShift() {
-    const confirmed = window.confirm('Deseja iniciar um novo turno?');
-
-    if (!confirmed) return;
-
     try {
       const { data: currentShift, error: currentShiftError } = await supabase
         .from('shift_sessions')
@@ -628,7 +692,8 @@ function App() {
 
       if (currentShiftError) {
         console.error(currentShiftError);
-        alert('Erro ao buscar o turno atual.');
+        showFeedback('error', 'Erro ao buscar o turno atual.');
+        setNewShiftModal(false);
         return;
       }
 
@@ -640,13 +705,13 @@ function App() {
 
         if (deactivateError) {
           console.error(deactivateError);
-          alert('Erro ao encerrar o turno atual.');
+          showFeedback('error', 'Erro ao encerrar o turno atual.');
+          setNewShiftModal(false);
           return;
         }
       }
 
       const now = new Date();
-
       const shiftName = `Turno ${now.toLocaleString('pt-BR')}`;
 
       const { error: createError } = await supabase
@@ -660,7 +725,8 @@ function App() {
 
       if (createError) {
         console.error(createError);
-        alert('Erro ao criar novo turno.');
+        showFeedback('error', 'Erro ao criar novo turno.');
+        setNewShiftModal(false);
         return;
       }
 
@@ -671,108 +737,172 @@ function App() {
       setFrequency(2);
       setFirstTest('06:00');
       setShift('A');
-
-      alert('Novo turno iniciado com sucesso.');
+      setErrors({});
+      showFeedback('success', 'Novo turno iniciado com sucesso.');
+      setNewShiftModal(false);
     } catch (error) {
       console.error(error);
-      alert('Erro ao iniciar novo turno.');
+      showFeedback('error', 'Erro ao iniciar novo turno.');
+      setNewShiftModal(false);
     }
   }
 
-  // --- RETURN ---
+  function confirmStopMachine(time, reason) {
+    handleStopMachine(stopModal.machineId, time, reason);
+
+    setStopModal({
+      open: false,
+      machineId: null,
+    });
+  }
+
+  function confirmResumeMachine(time) {
+    handleResumeMachine(resumeModal.machineId, time);
+
+    setResumeModal({
+      open: false,
+      machineId: null,
+    });
+  }
+
   return (
-    <>
-      <div className="appContainer">
-        <div>
-          <div className="appHeader">
-            <div>
-              <h1 className="appTitle">Controle de testes de qualidade</h1>
-              <p className="appSubtitle">Machine Test Scheduler</p>
-            </div>
-
-            <div className="appInfo">
-              <span>Turno atual: {shift}</span>
-              <span>{today}</span>
-            </div>
+    <div className="appContainer">
+      <div>
+        <div className="appHeader">
+          <div>
+            <h1 className="appTitle">Controle de testes de qualidade</h1>
+            <p className="appSubtitle">Machine Test Scheduler</p>
           </div>
-          <Dashboard
-            runningMachines={runningMachines}
-            stoppedMachines={stoppedMachines}
-            lateTests={lateTests}
-            completedTests={completedTests}
-          />
+
+          <div className="appInfo">
+            <span>Turno atual: {shift}</span>
+            <span>{today}</span>
+          </div>
         </div>
 
-        {/* BOTÃO LIMPAR TELA */}
-        <div className="sectionBar">
-          <button className="resetButton" onClick={handleStartNewShift}>
-            Iniciar novo turno
-          </button>
-        </div>
+        {feedback && (
+          <div className={`feedbackMessage feedback-${feedback.type}`}>
+            <span>{feedback.message}</span>
+            <button
+              className="feedbackClose"
+              onClick={() => setFeedback(null)}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
-        {/* FORMULÁRIO */}
-        <div className="formSection">
-          <MachineForm
-            code={code}
-            setCode={setCode}
-            material={material}
-            setMaterial={setMaterial}
-            frequency={frequency}
-            setFrequency={setFrequency}
-            firstTest={firstTest}
-            setFirstTest={setFirstTest}
-            shift={shift}
-            setShift={setShift}
-            onCreate={() =>
-              handleAddMachine({
-                code,
-                material,
-                frequency,
-                firstTest,
-                shift,
-              })
-            }
+        <Dashboard
+          runningMachines={runningMachines}
+          stoppedMachines={stoppedMachines}
+          lateTests={lateTests}
+          completedTests={completedTests}
+        />
+      </div>
+
+      <div className="sectionBar">
+        <button className="resetButton" onClick={() => setNewShiftModal(true)}>
+          Iniciar novo turno
+        </button>
+      </div>
+
+      <div className="formSection">
+        <MachineForm
+          code={code}
+          setCode={setCode}
+          material={material}
+          setMaterial={setMaterial}
+          frequency={frequency}
+          setFrequency={setFrequency}
+          firstTest={firstTest}
+          setFirstTest={setFirstTest}
+          shift={shift}
+          setShift={setShift}
+          errors={errors}
+          clearFieldError={clearFieldError}
+          onCreate={() =>
+            handleAddMachine({
+              code,
+              material,
+              frequency,
+              firstTest,
+              shift,
+            })
+          }
+        />
+      </div>
+
+      <Filters statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
+
+      <div className="sectionHeader">
+        <h2 className="sectionTitle">Máquinas em monitoramento</h2>
+        <p className="sectionSubtitle">Acompanhe o status dos testes.</p>
+      </div>
+
+      <div className="machinesGrid">
+        {filteredMachines?.map((machine) => (
+          <MachineCard
+            key={machine.id}
+            machine={machine}
+            onStop={(id) => {
+              setStopModal({
+                open: true,
+                machineId: id,
+              });
+            }}
+            onResume={(id) => {
+              setResumeModal({
+                open: true,
+                machineId: id,
+              });
+            }}
+            onUpdate={handleUpdateMachine}
+            onCompleteNext={handleCompleteNextTest}
+            onDelete={handleDeleteMachine}
           />
-        </div>
-        <Filters
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
+        ))}
+
+        <ModalConfirm
+          isOpen={deleteModal.open}
+          title="Excluir máquina"
+          message="Deseja realmente excluir esta máquina?"
+          onCancel={() => setDeleteModal({ open: false, machineId: null })}
+          onConfirm={confirmDeleteMachine}
         />
 
-        <div className="sectionHeader">
-          <h2 className="sectionTitle">Máquinas em monitoramento</h2>
-          <p className="sectionSubtitle">Acompanhe o status dos testes.</p>
-        </div>
+        <ModalStopMachine
+          isOpen={stopModal.open}
+          machineId={stopModal.machineId}
+          onClose={() =>
+            setStopModal({
+              open: false,
+              machineId: null,
+            })
+          }
+          onConfirm={confirmStopMachine}
+        />
 
-        <div className="machinesGrid">
-          {filteredMachines?.map((machine) => (
-            <MachineCard
-              key={machine.id}
-              machine={machine}
-              onStop={(id) => {
-                const stopTime = prompt('Digite o horário da parada (HH:MM)');
-                const reason = prompt('Motivo da parada?');
+        <ModalResumeMachine
+          isOpen={resumeModal.open}
+          onClose={() =>
+            setResumeModal({
+              open: false,
+              machineId: null,
+            })
+          }
+          onConfirm={confirmResumeMachine}
+        />
 
-                if (stopTime && reason) {
-                  handleStopMachine(id, stopTime, reason);
-                }
-              }}
-              onResume={(id) => {
-                const resumeTime = prompt(
-                  'Digite o horário de retorno (HH:MM)',
-                );
-                if (resumeTime) {
-                  handleResumeMachine(id, resumeTime);
-                }
-              }}
-              onUpdate={handleUpdateMachine}
-              onCompleteNext={handleCompleteNextTest}
-              onDelete={handleDeleteMachine}
-            />
-          ))}
-        </div>
+        <ModalConfirm
+          isOpen={newShiftModal}
+          title="Iniciar novo turno"
+          message="Deseja realmente iniciar um novo turno?"
+          onCancel={() => setNewShiftModal(false)}
+          onConfirm={handleStartNewShift}
+        />
       </div>
-    </>
+    </div>
   );
 }
 

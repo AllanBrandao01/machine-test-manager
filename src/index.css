@@ -40,7 +40,7 @@ body {
   background: #e8f3f2;
   padding: 28px;
   border-radius: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .appTitle {
@@ -102,6 +102,46 @@ body {
 .resetButton:hover {
   background: #d6ebe9;
   transform: translateY(-1px);
+}
+
+.feedbackMessage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.feedback-success {
+  background: #f1fbf8;
+  border-color: #bfe7d7;
+  color: #1b6f6a;
+}
+
+.feedback-error {
+  background: #fff4f3;
+  border-color: #f1c5c0;
+  color: #c0392b;
+}
+
+.feedback-warning {
+  background: #fff9ef;
+  border-color: #efd7a7;
+  color: #b7791f;
+}
+
+.feedbackClose {
+  border: none;
+  background: transparent;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: inherit;
+  line-height: 1;
 }
 
 button:disabled {

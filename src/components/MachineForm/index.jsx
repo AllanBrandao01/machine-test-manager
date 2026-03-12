@@ -1,4 +1,5 @@
 import { formatTimeInput } from '../../utils/time';
+import FormField from '../FormField';
 import styles from './index.module.css';
 
 function MachineForm({
@@ -12,6 +13,7 @@ function MachineForm({
   setFirstTest,
   shift,
   setShift,
+  errors,
   onCreate,
 }) {
   return (
@@ -27,10 +29,8 @@ function MachineForm({
       </div>
 
       <div className={styles.formGrid}>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="machine-code">
-            Máquina
-          </label>
+        {/* MÁQUINA */}
+        <FormField label="Máquina" htmlFor="machine-code" error={errors?.code}>
           <input
             id="machine-code"
             className={styles.input}
@@ -39,12 +39,14 @@ function MachineForm({
             onChange={(e) => setCode(e.target.value)}
             onBlur={() => setCode(code.trim().toUpperCase())}
           />
-        </div>
+        </FormField>
 
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="machine-material">
-            Material
-          </label>
+        {/* MATERIAL */}
+        <FormField
+          label="Material"
+          htmlFor="machine-material"
+          error={errors?.material}
+        >
           <input
             id="machine-material"
             className={styles.input}
@@ -53,16 +55,13 @@ function MachineForm({
             onChange={(e) => setMaterial(e.target.value)}
             onBlur={() => {
               const value = material.trim().toUpperCase();
-
               setMaterial(value);
             }}
           />
-        </div>
+        </FormField>
 
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="machine-frequency">
-            Frequência (horas)
-          </label>
+        {/* FREQUÊNCIA */}
+        <FormField label="Frequência (horas)" htmlFor="machine-frequency">
           <input
             id="machine-frequency"
             className={styles.input}
@@ -73,12 +72,14 @@ function MachineForm({
             min={0.5}
             step={0.5}
           />
-        </div>
+        </FormField>
 
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="machine-first-test">
-            Primeiro teste
-          </label>
+        {/* PRIMEIRO TESTE */}
+        <FormField
+          label="Primeiro teste"
+          htmlFor="machine-first-test"
+          error={errors?.firstTest}
+        >
           <input
             id="machine-first-test"
             className={styles.input}
@@ -87,20 +88,20 @@ function MachineForm({
             onChange={(e) => setFirstTest(e.target.value)}
             onBlur={() => {
               const normalized = formatTimeInput(firstTest);
+
               if (!normalized) {
                 alert('Horário inválido');
                 setFirstTest('06:00');
                 return;
               }
+
               setFirstTest(normalized);
             }}
           />
-        </div>
+        </FormField>
 
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="machine-shift">
-            Turma
-          </label>
+        {/* TURMA */}
+        <FormField label="Turma" htmlFor="machine-shift">
           <select
             id="machine-shift"
             className={styles.select}
@@ -112,7 +113,7 @@ function MachineForm({
             <option value="C">Turma C</option>
             <option value="D">Turma D</option>
           </select>
-        </div>
+        </FormField>
       </div>
 
       <div className={styles.actions}>
