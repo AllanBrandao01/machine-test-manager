@@ -171,10 +171,10 @@ function App() {
     });
   }
 
-  async function fetchActiveShiftSession() {
+  async function getActiveShiftSessionId() {
     const { data, error } = await supabase
       .from('shift_sessions')
-      .select('*')
+      .select('id')
       .eq('is_active', true)
       .order('started_at', { ascending: false })
       .limit(1)
@@ -185,16 +185,12 @@ function App() {
       return null;
     }
 
-    if (!data) {
-      return null;
-    }
-
-    return data.id;
+    return data?.id ?? null;
   }
 
   useEffect(() => {
     async function fetchMachines() {
-      const shiftSessionId = await fetchActiveShiftSession();
+      const shiftSessionId = await getActiveShiftSessionId();
 
       if (!shiftSessionId) {
         dispatch({ type: 'SET_MACHINES', payload: [] });
@@ -205,16 +201,15 @@ function App() {
         .from('machines')
         .select(
           `
-        *,
-        tests (*),
-        stops (*)
-      `,
+          *,
+          tests (*),
+          stops (*)
+        `,
         )
         .eq('shift_session_id', shiftSessionId);
 
       if (error) {
         console.error('Erro ao buscar máquinas:', error);
-        showFeedback('error', 'Erro ao buscar máquinas.');
         return;
       }
 
@@ -260,23 +255,6 @@ function App() {
 
     fetchMachines();
   }, []);
-
-  async function getActiveShiftSessionId() {
-    const { data, error } = await supabase
-      .from('shift_sessions')
-      .select('id')
-      .eq('is_active', true)
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Erro ao buscar turno ativo:', error);
-      return null;
-    }
-
-    return data?.id ?? null;
-  }
 
   async function handleAddMachine(machineData) {
     try {
