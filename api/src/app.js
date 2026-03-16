@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import machinesRoutes from './routes/machinesRoutes.js';
+import shiftSessionRoutes from './routes/shiftSessionRoutes.js';
 
 const app = express();
 
@@ -12,5 +13,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api', machinesRoutes);
+
+app.use('/api/shift-session', shiftSessionRoutes);
 
 export default app;

@@ -59,3 +59,15 @@ export async function postMachineTest(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+
+import { updateMachine } from '../services/machinesService.js';
+
+export async function updateMachineController(req, res) {
+  try {
+    const { id } = req.params;
+    const machine = await updateMachine(id, req.body);
+    res.json(machine);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}

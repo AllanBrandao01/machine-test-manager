@@ -5,6 +5,7 @@ import {
   postStopMachine,
   postResumeMachine,
   postMachineTest,
+  updateMachineController,
 } from '../controllers/machinesController.js';
 
 const router = express.Router();

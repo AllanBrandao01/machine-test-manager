@@ -1,99 +1,3 @@
-import prisma from '../lib/prisma.js';
-
-function timeToMinutes(time) {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-function minutesToTime(totalMinutes) {
-  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-  const minutes = String(totalMinutes % 60).padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
-
-function getNextExpectedTest(firstTest, frequency, completedTestsCount) {
-  const firstTestMinutes = timeToMinutes(firstTest);
-  const nextTestMinutes = firstTestMinutes + frequency * completedTestsCount;
-
-  return minutesToTime(nextTestMinutes);
-}
-
-function mapMachineState(machine) {
-  const lastStop = machine.stops.length
-    ? machine.stops[machine.stops.length - 1]
-    : null;
-
-  const isStopped = lastStop ? !lastStop.resumeTime : false;
-
-  const nextExpectedTest = getNextExpectedTest(
-    machine.firstTest,
-    machine.frequency,
-    machine.tests.length,
-  );
-
-  return {
-    ...machine,
-    status: isStopped ? 'stopped' : 'running',
-    isStopped,
-    lastStop,
-    completedTestsCount: machine.tests.length,
-    nextExpectedTest,
-  };
-}
-
-export async function findAllMachines() {
-  const machines = await prisma.machine.findMany({
-    include: {
-      shiftSession: true,
-      stops: true,
-      tests: true,
-    },
-    orderBy: {
-      id: 'asc',
-    },
-  });
-
-  return machines.map(mapMachineState);
-}
-
-export async function createMachine(data) {
-  const activeShiftSession = await prisma.shiftSession.create({
-    data: {
-      shift: data.shift,
-    },
-  });
-
-  const machine = await prisma.machine.create({
-    data: {
-      code: data.code,
-      material: data.material,
-      frequency: Number(data.frequency),
-      firstTest: data.firstTest,
-      shift: data.shift,
-      shiftSessionId: activeShiftSession.id,
-    },
-    include: {
-      shiftSession: true,
-      stops: true,
-      tests: true,
-    },
-  });
-
-  return machine;
-}
-
-export async function stopMachine(machineId, data) {
-  const stop = await prisma.stop.create({
-    data: {
-      machineId: Number(machineId),
-      stopTime: data.stopTime,
-      reason: data.reason,
-    },
-  });
-
-  return stop;
-}
-
 export async function resumeMachine(machineId, data) {
   const lastOpenStop = await prisma.stop.findFirst({
     where: {
@@ -118,16 +22,95 @@ export async function resumeMachine(machineId, data) {
     },
   });
 
-  return updatedStop;
-}
-
-export async function registerMachineTest(machineId, data) {
-  const test = await prisma.test.create({
-    data: {
-      machineId: Number(machineId),
-      testTime: data.testTime,
+  const machine = await prisma.machine.findUnique({
+    where: {
+      id: Number(machineId),
+    },
+    include: {
+      shiftSession: true,
+      stops: true,
+      tests: true,
     },
   });
 
-  return test;
+  const schedule = generateSchedule(
+    data.resumeTime,
+    machine.frequency,
+    machine.shift,
+  );
+
+  return {
+    updatedStop,
+    newBlock: {
+      startTime: data.resumeTime,
+      endTime: null,
+      tests: schedule.map((time) => ({
+        time,
+        done: false,
+      })),
+    },
+  };
+}
+
+export async function updateMachine(machineId, data) {
+  const machine = await prisma.machine.findUnique({
+    where: {
+      id: Number(machineId),
+    },
+    include: {
+      shiftSession: true,
+      stops: true,
+      tests: true,
+    },
+  });
+
+  if (!machine) {
+    throw new Error('Máquina não encontrada.');
+  }
+
+  const updatedMachine = await prisma.machine.update({
+    where: {
+      id: Number(machineId),
+    },
+    data: {
+      code: data.code ?? machine.code,
+      material: data.material ?? machine.material,
+      frequency:
+        typeof data.frequency === 'number' ? data.frequency : machine.frequency,
+      firstTest: data.firstTest ?? machine.firstTest,
+      shift: data.shift ?? machine.shift,
+    },
+    include: {
+      shiftSession: true,
+      stops: true,
+      tests: true,
+    },
+  });
+
+  let rebuiltBlock = null;
+
+  const frequencyChanged =
+    typeof data.frequency === 'number' && data.frequency !== machine.frequency;
+
+  if (frequencyChanged) {
+    const schedule = generateSchedule(
+      updatedMachine.firstTest,
+      updatedMachine.frequency,
+      updatedMachine.shift,
+    );
+
+    rebuiltBlock = {
+      startTime: updatedMachine.firstTest,
+      endTime: null,
+      tests: schedule.map((time) => ({
+        time,
+        done: false,
+      })),
+    };
+  }
+
+  return {
+    ...updatedMachine,
+    rebuiltBlock,
+  };
 }
