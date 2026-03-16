@@ -1,8 +1,18 @@
 import express from 'express';
-import { getMachines } from '../controllers/machinesController.js';
+import {
+  getMachines,
+  postMachine,
+  postStopMachine,
+  postResumeMachine,
+  postMachineTest,
+} from '../controllers/machinesController.js';
 
 const router = express.Router();
 
 router.get('/machines', getMachines);
+router.post('/machines', postMachine);
+router.post('/machines/:id/stop', postStopMachine);
+router.post('/machines/:id/resume', postResumeMachine);
+router.post('/machines/:id/test', postMachineTest);
 
 export default router;
