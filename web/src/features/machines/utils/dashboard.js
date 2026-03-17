@@ -1,45 +1,28 @@
-import { convertToMinutes } from '../../../utils/time';
-
-function isNightShift(shift) {
-  return shift === 'B' || shift === 'D';
-}
-
-function toShiftMinutes(timeString, shift) {
-  let mins = convertToMinutes(timeString);
-
-  if (isNightShift(shift) && mins < 18 * 60) {
-    mins += 1440;
-  }
-
-  return mins;
-}
-
-function getNowShiftMinutes(shift) {
-  const now = new Date();
-  let mins = now.getHours() * 60 + now.getMinutes();
-
-  if (isNightShift(shift) && mins < 18 * 60) {
-    mins += 1440;
-  }
-
-  return mins;
-}
+import {
+  toShiftMinutes,
+  getNowShiftMinutes,
+  isNowInsideShiftWindow,
+} from '../../../utils/shift';
 
 export function getDashboardStats(machines) {
   const runningMachines = machines.filter((machine) => {
     const lastBlock = machine.blocks?.[machine.blocks.length - 1];
-    return lastBlock?.endTime === null;
+    return lastBlock && lastBlock.endTime === null;
   }).length;
 
   const stoppedMachines = machines.filter((machine) => {
     const lastBlock = machine.blocks?.[machine.blocks.length - 1];
-    return lastBlock?.endTime !== null;
+    return lastBlock && lastBlock.endTime !== null;
   }).length;
 
   const lateTests = machines.reduce((total, machine) => {
     const currentBlock = machine.blocks?.[machine.blocks.length - 1];
 
     if (!currentBlock || currentBlock.endTime !== null) {
+      return total;
+    }
+
+    if (!isNowInsideShiftWindow(machine.shift)) {
       return total;
     }
 

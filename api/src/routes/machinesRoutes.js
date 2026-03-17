@@ -6,6 +6,7 @@ import {
   postResumeMachine,
   postMachineTest,
   updateMachineController,
+  deleteMachineController,
 } from '../controllers/machinesController.js';
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.post('/machines/:id/stop', postStopMachine);
 router.post('/machines/:id/resume', postResumeMachine);
 router.post('/machines/:id/test', postMachineTest);
 router.put('/machines/:id', updateMachineController);
+router.delete('/machines/:id', deleteMachineController);
 
 export default router;

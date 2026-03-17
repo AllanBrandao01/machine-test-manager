@@ -24,3 +24,14 @@ export function getNowShiftMinutes(shift) {
 
   return mins;
 }
+
+export function isNowInsideShiftWindow(shift) {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+
+  if (isNightShift(shift)) {
+    return mins >= 18 * 60 || mins <= 6 * 60;
+  }
+
+  return true;
+}

@@ -42,6 +42,12 @@ function machinesReducer(state, action) {
       });
     }
 
+    case 'REPLACE_MACHINE': {
+      return state.map((machine) =>
+        machine.id === action.payload.id ? action.payload : machine,
+      );
+    }
+
     case 'RESUME_MACHINE': {
       const { machineId, newBlock } = action.payload;
 
@@ -80,20 +86,6 @@ function machinesReducer(state, action) {
     case 'DELETE_MACHINE': {
       return state.filter((machine) => machine.id !== action.payload);
     }
-
-    case 'UPDATE_MACHINE': {
-      const { machineId, updates } = action.payload;
-
-      return state.map((machine) => {
-        if (machine.id !== machineId) return machine;
-
-        return {
-          ...machine,
-          ...updates,
-        };
-      });
-    }
-
     case 'SET_TEST_DONE': {
       const { machineId, blockIndex, time, done } = action.payload;
 

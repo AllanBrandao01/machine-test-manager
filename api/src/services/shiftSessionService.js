@@ -12,6 +12,10 @@ export async function getActiveShiftSession() {
 }
 
 export async function startNewShiftSession(shift) {
+  if (!shift) {
+    throw new Error('Turma é obrigatória paro iniciar um turno.');
+  }
+
   return prisma.shiftSession.create({
     data: {
       shift,

@@ -5,6 +5,7 @@ import {
   resumeMachine,
   registerMachineTest,
   updateMachine,
+  deleteMachine,
 } from '../services/machinesService.js';
 
 export async function getMachines(req, res) {
@@ -64,6 +65,17 @@ export async function updateMachineController(req, res) {
     const machine = await updateMachine(id, req.body);
 
     return res.status(200).json(machine);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+export async function deleteMachineController(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await deleteMachine(id);
+
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

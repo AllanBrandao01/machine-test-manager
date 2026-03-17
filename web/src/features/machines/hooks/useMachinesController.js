@@ -15,6 +15,7 @@ import {
   deactivateShiftSession,
   startNewShiftSession,
   updateMachineRequest,
+  deleteMachineRequest,
 } from '../../../services/machinesDataService';
 
 function normalizeMachineFromApi(machine) {
@@ -100,22 +101,20 @@ function normalizeMachineFromApi(machine) {
 
     return {
       ...machine,
-      frequency: safeFrequency,
-      blocks,
-      stops: normalizedStops,
+      frequency: Number(machine.frequency),
+      stops: machine.stops ?? [],
+      tests: machine.tests ?? [],
+      blocks: machine.blocks ?? [],
     };
   } catch (error) {
     console.error('Erro ao normalizar máquina:', machine, error);
 
     return {
       ...machine,
-      frequency: Number(machine.frequency) || 0,
-      blocks: [],
-      stops: (machine.stops || []).map((stop) => ({
-        stoppedAt: stop.stopTime,
-        resumedAt: stop.resumeTime ?? null,
-        reason: stop.reason,
-      })),
+      frequency: Number(machine.frequency),
+      stops: machine.stops ?? [],
+      tests: machine.tests ?? [],
+      blocks: machine.blocks ?? [],
     };
   }
 }
@@ -198,44 +197,109 @@ export function useMachinesController() {
     };
   }
 
-  async function startNewShiftFlow(currentShiftValue) {
-    const currentShift = await getActiveShiftSession();
+  async function handleStartNewShift() {
+    try {
+      if (!shift) {
+        showFeedback(
+          'error',
+          'Selecione a turma antes de iniciar um novo turno.',
+        );
+        setNewShiftModal(false);
+        return;
+      }
 
-    if (currentShift) {
-      await deactivateShiftSession(currentShift.id);
+      await startNewShiftFlow(shift);
+
+      dispatch({ type: 'SET_MACHINES', payload: [] });
+
+      resetMachineForm();
+      showFeedback('success', 'Novo turno iniciado com sucesso.');
+      setNewShiftModal(false);
+    } catch (error) {
+      console.error(error);
+      showFeedback('error', error.message || 'Erro ao iniciar novo turno.');
+      setNewShiftModal(false);
     }
-
-    await startNewShiftSession(currentShiftValue);
   }
 
-  async function stopMachineFlow(machineId, formattedStopTime, reason) {
-    await insertStop(machineId, formattedStopTime, reason.trim());
+  async function stopMachineFlow(machineId, stopData) {
+    try {
+      const response = await insertStop(machineId, stopData);
 
-    return {
-      machineId,
-      stopTime: formattedStopTime,
-      reason,
-    };
-  }
+      dispatch({
+        type: 'REPLACE_MACHINE',
+        payload: normalizeMachineFromApi(response),
+      });
 
-  async function resumeMachineFlow(machineId, formattedResumeTime) {
-    const response = await updateStopResume(machineId, formattedResumeTime);
-    const newBlock = response.newBlock;
-
-    if (!newBlock?.tests?.length) {
-      throw new Error('Não há mais testes restantes para este turno.');
+      showFeedback('success', 'Máquina parada com sucesso.');
+    } catch (error) {
+      showFeedback('error', error.message || 'Erro ao parar máquina.');
+      throw error;
     }
-
-    return newBlock;
   }
 
-  async function completeNextTestFlow(machineId, testTime) {
-    await insertTest(machineId, testTime);
+  async function resumeMachineFlow(machineId, resumeData) {
+    try {
+      const response = await updateStopResume(machineId, resumeData);
 
-    return {
-      machineId,
-      time: testTime,
-    };
+      dispatch({
+        type: 'REPLACE_MACHINE',
+        payload: normalizeMachineFromApi(response),
+      });
+
+      showFeedback('success', 'Máquina retomada com sucesso.');
+    } catch (error) {
+      showFeedback('error', error.message || 'Erro ao retomar máquina.');
+      throw error;
+    }
+  }
+
+  async function completeNextTestFlow(machineId, testValue) {
+    try {
+      const machine = machines.find((m) => m.id === machineId);
+      if (!machine) {
+        showFeedback('error', 'Máquina não encontrada.');
+        return;
+      }
+
+      const currentBlock = machine.blocks?.[machine.blocks.length - 1];
+
+      if (!currentBlock || currentBlock.endTime !== null) {
+        showFeedback('warning', 'A máquina está parada.');
+        return;
+      }
+
+      const nextPendingTest = currentBlock.tests?.find((test) => !test.done);
+
+      const rawTestTime =
+        typeof testValue === 'string'
+          ? testValue
+          : testValue?.time ||
+            testValue?.testTime ||
+            nextPendingTest?.time ||
+            '';
+
+      const formattedTestTime = formatTimeInput(rawTestTime);
+
+      if (!formattedTestTime) {
+        showFeedback('error', 'Horário de teste inválido.');
+        return;
+      }
+
+      const response = await insertTest(machineId, {
+        testTime: formattedTestTime,
+      });
+
+      dispatch({
+        type: 'REPLACE_MACHINE',
+        payload: normalizeMachineFromApi(response),
+      });
+
+      showFeedback('success', 'Teste registrado com sucesso.');
+    } catch (error) {
+      showFeedback('error', error.message || 'Erro ao registrar teste.');
+      throw error;
+    }
   }
 
   useEffect(() => {
@@ -249,6 +313,7 @@ export function useMachinesController() {
         });
       } catch (error) {
         console.error('Erro ao buscar máquinas:', error);
+        showFeedback('error', error.message || 'Erro ao buscar máquinas.');
       }
     }
 
@@ -298,21 +363,32 @@ export function useMachinesController() {
     });
   }
 
-  function confirmDeleteMachine() {
-    dispatch({
-      type: 'DELETE_MACHINE',
-      payload: deleteModal.machineId,
-    });
+  async function confirmDeleteMachine() {
+    try {
+      await deleteMachineRequest(deleteModal.machineId);
 
-    setDeleteModal({ open: false, machineId: null });
-    showFeedback('success', 'Máquina excluída com sucesso.');
+      dispatch({
+        type: 'DELETE_MACHINE',
+        payload: deleteModal.machineId,
+      });
+
+      setDeleteModal({ open: false, machineId: null });
+      showFeedback('success', 'Máquina excluída com sucesso.');
+    } catch (error) {
+      showFeedback('error', error.message || 'Erro ao excluir máquina.');
+    }
   }
 
   async function handleStopMachine(machineId, stopTime, reason) {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
 
-    const lastBlock = machine.blocks[machine.blocks.length - 1];
+    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
+
+    if (!lastBlock) {
+      showFeedback('error', 'Bloco atual da máquina não encontrado.');
+      return;
+    }
 
     if (lastBlock.endTime !== null) {
       showFeedback('warning', 'A máquina já está parada.');
@@ -325,22 +401,10 @@ export function useMachinesController() {
       return;
     }
 
-    try {
-      const payload = await stopMachineFlow(
-        machineId,
-        formattedStopTime,
-        reason,
-      );
-
-      dispatch({
-        type: 'STOP_MACHINE',
-        payload,
-      });
-
-      showFeedback('success', 'Máquina parada com sucesso.');
-    } catch (error) {
-      showFeedback('error', error.message || 'Erro ao parar máquina.');
-    }
+    await stopMachineFlow(machineId, {
+      stopTime: formattedStopTime,
+      reason,
+    });
   }
 
   function confirmStopMachine(time, reason) {
@@ -356,7 +420,12 @@ export function useMachinesController() {
     const machine = machines.find((m) => m.id === machineId);
     if (!machine) return;
 
-    const lastBlock = machine.blocks[machine.blocks.length - 1];
+    const lastBlock = machine.blocks?.[machine.blocks.length - 1];
+
+    if (!lastBlock) {
+      showFeedback('error', 'Bloco atual da máquina não encontrado.');
+      return;
+    }
 
     if (lastBlock.endTime === null) {
       showFeedback('warning', 'A máquina já está em funcionamento.');
@@ -370,21 +439,13 @@ export function useMachinesController() {
     }
 
     try {
-      const newBlock = await resumeMachineFlow(machineId, formattedResumeTime);
-
-      dispatch({
-        type: 'RESUME_MACHINE',
-        payload: { machineId, newBlock },
+      await resumeMachineFlow(machineId, {
+        resumeTime: formattedResumeTime,
       });
-
-      showFeedback('success', 'Máquina retomada com sucesso.');
     } catch (error) {
       if (error.message === 'Não há mais testes restantes para este turno.') {
         showFeedback('warning', error.message);
-        return;
       }
-
-      showFeedback('error', error.message || 'Erro ao retomar máquina.');
     }
   }
 
@@ -409,34 +470,9 @@ export function useMachinesController() {
     try {
       const response = await updateMachineRequest(machineId, updates);
 
-      const finalUpdates = response.rebuiltBlock
-        ? {
-            ...updates,
-            blocks: [
-              ...(machine.blocks || []).slice(0, -1),
-              response.rebuiltBlock,
-            ],
-            frequency: response.frequency,
-            firstTest: response.firstTest,
-            shift: response.shift,
-            code: response.code,
-            material: response.material,
-          }
-        : {
-            ...updates,
-            frequency: response.frequency,
-            firstTest: response.firstTest,
-            shift: response.shift,
-            code: response.code,
-            material: response.material,
-          };
-
       dispatch({
-        type: 'UPDATE_MACHINE',
-        payload: {
-          machineId,
-          updates: finalUpdates,
-        },
+        type: 'REPLACE_MACHINE',
+        payload: normalizeMachineFromApi(response),
       });
 
       showFeedback('success', 'Máquina atualizada com sucesso.');
@@ -445,57 +481,18 @@ export function useMachinesController() {
     }
   }
 
-  async function handleCompleteNextTest(machineId) {
-    const machine = machines.find((m) => m.id === machineId);
-    if (!machine) return;
-
-    const blockIndex = machine.blocks.length - 1;
-    const block = machine.blocks[blockIndex];
-
-    if (block.endTime !== null) {
-      showFeedback('warning', 'A máquina está parada.');
-      return;
+  async function startNewShiftFlow(currentShiftValue) {
+    if (!currentShiftValue) {
+      throw new Error('Turma inválida para iniciar turno.');
     }
 
-    const nextPending = block.tests?.find((t) => !t.done);
-    if (!nextPending) {
-      showFeedback('warning', 'Todos os testes foram concluídos.');
-      return;
+    const currentShift = await getActiveShiftSession();
+
+    if (currentShift?.id) {
+      await deactivateShiftSession(currentShift.id);
     }
 
-    try {
-      await completeNextTestFlow(machineId, nextPending.time);
-
-      dispatch({
-        type: 'SET_TEST_DONE',
-        payload: {
-          machineId,
-          blockIndex,
-          time: nextPending.time,
-          done: true,
-        },
-      });
-
-      showFeedback('success', 'Teste concluído com sucesso.');
-    } catch (error) {
-      showFeedback('error', error.message || 'Erro ao concluir teste.');
-    }
-  }
-
-  async function handleStartNewShift() {
-    try {
-      await startNewShiftFlow(shift);
-
-      dispatch({ type: 'SET_MACHINES', payload: [] });
-
-      resetMachineForm();
-      showFeedback('success', 'Novo turno iniciado com sucesso.');
-      setNewShiftModal(false);
-    } catch (error) {
-      console.error(error);
-      showFeedback('error', error.message || 'Erro ao iniciar novo turno.');
-      setNewShiftModal(false);
-    }
+    return startNewShiftSession(currentShiftValue);
   }
 
   const { runningMachines, stoppedMachines, lateTests, completedTests } =
@@ -531,7 +528,7 @@ export function useMachinesController() {
     feedback,
     setFeedback,
     handleAddMachine,
-    handleCompleteNextTest,
+    handleCompleteNextTest: completeNextTestFlow,
     handleUpdateMachine,
     handleDeleteMachine,
     stopModal,

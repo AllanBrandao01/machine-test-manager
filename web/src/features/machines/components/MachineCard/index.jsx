@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import styles from './index.module.css';
-import { toShiftMinutes, getNowShiftMinutes } from '../../../../utils/shift';
+import {
+  toShiftMinutes,
+  getNowShiftMinutes,
+  isNowInsideShiftWindow,
+} from '../../../../utils/shift';
 
 function MachineCard({
   machine,
@@ -10,18 +14,18 @@ function MachineCard({
   onCompleteNext,
   onDelete,
 }) {
-  const lastBlock = machine.blocks?.[machine.blocks.length - 1];
-  const isRunning = lastBlock?.endTime === null;
-
   const currentBlock = machine.blocks?.[machine.blocks.length - 1];
+  const isRunning = currentBlock?.endTime === null;
+  const isInsideShiftWindow = isNowInsideShiftWindow(machine.shift);
+  const nowMins = isInsideShiftWindow
+    ? getNowShiftMinutes(machine.shift)
+    : null;
 
   const [isEditing, setIsEditing] = useState(false);
   const [editMaterial, setEditMaterial] = useState(machine.material || '');
   const [editFrequency, setEditFrequency] = useState(machine.frequency || 2);
 
   const nextTestTime = currentBlock?.tests?.find((t) => !t.done)?.time ?? null;
-
-  const nowMins = getNowShiftMinutes(machine.shift);
 
   function startEdit() {
     setEditMaterial(machine.material || '');
@@ -30,10 +34,13 @@ function MachineCard({
   }
 
   const hasLateTest =
-    currentBlock?.tests?.some((t) => {
-      const tMins = toShiftMinutes(t.time);
+    isRunning &&
+    isInsideShiftWindow &&
+    (currentBlock?.tests?.some((t) => {
+      const tMins = toShiftMinutes(t.time, machine.shift);
       return tMins < nowMins && !t.done;
-    }) ?? false;
+    }) ??
+      false);
 
   return (
     <div
@@ -53,10 +60,14 @@ function MachineCard({
 
         <span
           className={`${styles.statusBadge} ${
-            isRunning ? styles.running : styles.stopped
+            !isRunning
+              ? styles.stopped
+              : hasLateTest
+                ? styles.alert
+                : styles.running
           }`}
         >
-          {isRunning ? 'Rodando' : 'Parada'}
+          {!isRunning ? 'Parada' : hasLateTest ? 'Atrasada' : 'Rodando'}
         </span>
       </div>
 
@@ -145,10 +156,25 @@ function MachineCard({
 
               <ul className={styles.testList}>
                 {block.tests?.map((test, i) => {
-                  const testMinutes = toShiftMinutes(test.time);
-                  const isPast = testMinutes < nowMins;
-                  const isNext = test.time === nextTestTime;
-                  const isLate = blockIsRunning && isPast && !test.done;
+                  const testMinutes = toShiftMinutes(test.time, machine.shift);
+
+                  const isPast =
+                    isInsideShiftWindow && nowMins !== null
+                      ? testMinutes < nowMins
+                      : false;
+
+                  const isNext =
+                    blockIsRunning &&
+                    isRunning &&
+                    test.time === nextTestTime &&
+                    !test.done;
+
+                  const isLate =
+                    blockIsRunning &&
+                    isRunning &&
+                    isInsideShiftWindow &&
+                    isPast &&
+                    !test.done;
 
                   let testClass = styles.testItem;
 
@@ -163,7 +189,9 @@ function MachineCard({
                   return (
                     <li key={i} className={testClass}>
                       <span
-                        className={`${styles.testTime} ${test.done ? styles.timeDone : ''}`}
+                        className={`${styles.testTime} ${
+                          test.done ? styles.timeDone : ''
+                        }`}
                       >
                         {test.time}
                       </span>
@@ -173,7 +201,7 @@ function MachineCard({
                           ? '✓'
                           : isLate
                             ? 'Atrasado'
-                            : !blockIsRunning && isPast
+                            : !blockIsRunning
                               ? 'Não realizado'
                               : isNext
                                 ? 'Próximo'

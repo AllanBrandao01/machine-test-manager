@@ -1,6 +1,22 @@
 import prisma from '../lib/prisma.js';
 import { buildMachineTimeline } from '../domain/machines/buildMachineTimeline.js';
 
+export async function deleteMachine(id) {
+  const machine = await prisma.machine.findUnique({
+    where: { id },
+  });
+
+  if (!machine) {
+    throw new Error('Máquina não encontrada.');
+  }
+
+  await prisma.machine.delete({
+    where: { id },
+  });
+
+  return { success: true };
+}
+
 export async function findAllMachines() {
   const machines = await prisma.machine.findMany({
     include: {
@@ -30,9 +46,32 @@ export async function createMachine(data) {
     throw new Error('Nenhum turno ativo encontrado.');
   }
 
+  const normalizedCode = data.code.trim().toUpperCase();
+
+  const existingMachine = await prisma.machine.findFirst({
+    where: {
+      code: normalizedCode,
+      shiftSessionId: activeShiftSession.id,
+    },
+  });
+
+  if (existingMachine) {
+    throw new Error('Já existe uma máquina com esse código neste turno.');
+  }
+
+  if (!data.firstTest || !/^\d{2}:\d{2}$/.test(data.firstTest)) {
+    throw new Error('Horário do primeiro teste inválido.');
+  }
+
+  const safeFrequency = Number(data.frequency);
+
+  if (!Number.isFinite(safeFrequency) || safeFrequency < 0.5) {
+    throw new Error('A frequência mínima é 0.5 (30 minutos).');
+  }
+
   const machine = await prisma.machine.create({
     data: {
-      code: data.code,
+      code: normalizedCode,
       material: data.material,
       frequency: safeFrequency,
       firstTest: data.firstTest,

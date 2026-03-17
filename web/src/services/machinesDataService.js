@@ -1,5 +1,27 @@
 const API = 'http://localhost:3001/api';
 
+async function parseResponse(response, fallbackMessage) {
+  const text = await response.text();
+
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(text || fallbackMessage);
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || fallbackMessage);
+  }
+
+  if (!data) {
+    throw new Error('Resposta vazia da API.');
+  }
+
+  return data;
+}
+
 export async function getActiveShiftSessionId() {
   const response = await fetch(`${API}/shift-session/active`);
 
@@ -20,80 +42,69 @@ export async function insertMachine(machineData) {
     body: JSON.stringify(machineData),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Erro ao salvar máquina: ${text}`);
-  }
-
-  return await response.json();
+  return parseResponse(response, 'Erro ao salvar máquina.');
 }
 
-export async function insertStop(machineId, stopTime, reason) {
+export async function insertStop(machineId, data) {
   const response = await fetch(`${API}/machines/${machineId}/stop`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      stopTime,
-      reason,
+      stopTime: data.stopTime,
+      reason: data.reason,
     }),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Erro ao salvar parada: ${text}`);
-  }
-
-  return await response.json();
+  return parseResponse(response, 'Erro ao salvar parada.');
 }
 
-export async function updateStopResume(machineId, resumeTime) {
+export async function updateStopResume(machineId, data) {
   const response = await fetch(`${API}/machines/${machineId}/resume`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      resumeTime,
+      resumeTime: data.resumeTime,
     }),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Erro ao salvar retomada: ${text}`);
-  }
-
-  return await response.json();
+  return parseResponse(response, 'Erro ao salvar retomada.');
 }
 
-export async function insertTest(machineId, testTime) {
+export async function insertTest(machineId, data) {
   const response = await fetch(`${API}/machines/${machineId}/test`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      testTime,
+      testTime: data.testTime,
     }),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Erro ao salvar teste: ${text}`);
-  }
-
-  return await response.json();
+  return parseResponse(response, 'Erro ao salvar teste.');
 }
 
 export async function getActiveShiftSession() {
   const response = await fetch(`${API}/shift-session/active`);
+  const text = await response.text();
 
   if (!response.ok) {
-    throw new Error('Erro ao buscar turno atual');
+    throw new Error(text || 'Erro ao buscar turno atual');
   }
 
-  return await response.json();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 export async function deactivateShiftSession(id) {
@@ -101,9 +112,13 @@ export async function deactivateShiftSession(id) {
     method: 'POST',
   });
 
+  const text = await response.text();
+
   if (!response.ok) {
-    throw new Error('Erro ao encerrar turno atual');
+    throw new Error(text || 'Erro ao encerrar turno atual');
   }
+
+  return text ? JSON.parse(text) : true;
 }
 
 export async function startNewShiftSession(shift) {
@@ -115,11 +130,7 @@ export async function startNewShiftSession(shift) {
     body: JSON.stringify({ shift }),
   });
 
-  if (!response.ok) {
-    throw new Error('Erro ao criar novo turno');
-  }
-
-  return await response.json();
+  return parseResponse(response, 'Erro ao criar novo turno.');
 }
 
 export async function updateMachineRequest(machineId, updates) {
@@ -131,10 +142,13 @@ export async function updateMachineRequest(machineId, updates) {
     body: JSON.stringify(updates),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Erro ao atualizar máquina: ${text}`);
-  }
+  return parseResponse(response, 'Erro ao atualizar máquina.');
+}
 
-  return await response.json();
+export async function deleteMachineRequest(machineId) {
+  const response = await fetch(`${API}/machines/${machineId}`, {
+    method: 'DELETE',
+  });
+
+  return parseResponse(response, 'Erro ao excluir máquina.');
 }
