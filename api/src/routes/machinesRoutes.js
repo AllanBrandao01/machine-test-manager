@@ -15,5 +15,6 @@ router.post('/machines', postMachine);
 router.post('/machines/:id/stop', postStopMachine);
 router.post('/machines/:id/resume', postResumeMachine);
 router.post('/machines/:id/test', postMachineTest);
+router.put('/machines/:id', updateMachineController);
 
 export default router;

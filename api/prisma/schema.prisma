@@ -17,33 +17,36 @@ model ShiftSession {
 }
 
 model Machine {
-  id             Int          @id @default(autoincrement())
-  code           String
-  material       String
-  frequency      Int
-  firstTest      String
-  shift          String
-  shiftSessionId Int
-  shiftSession   ShiftSession @relation(fields: [shiftSessionId], references: [id], onDelete: Cascade)
-  stops          Stop[]
-  tests          Test[]
-  createdAt      DateTime     @default(now())
+  id        String @id @default(cuid())
+  code      String
+  material  String
+  frequency Float @db.Float @default(1)
+  firstTest String
+  shift     String
+
+  shiftSessionId Int?
+  shiftSession   ShiftSession? @relation(fields: [shiftSessionId], references: [id])
+
+  stops Stop[]
+  tests Test[]
+
+  createdAt DateTime @default(now())
 }
 
 model Stop {
   id         Int      @id @default(autoincrement())
-  machineId   Int
-  machine     Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  stopTime    String
-  reason      String
-  resumeTime  String?
-  createdAt   DateTime @default(now())
+  machineId  String
+  machine    Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  stopTime   String
+  reason     String
+  resumeTime String?
+  createdAt  DateTime @default(now())
 }
 
 model Test {
-  id          Int      @id @default(autoincrement())
-  machineId    Int
-  machine      Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  testTime     String
-  createdAt    DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  machineId String
+  machine   Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  testTime  String
+  createdAt DateTime @default(now())
 }
