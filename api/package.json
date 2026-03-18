@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "render:start": "node node_modules/prisma/build/index.js migrate deploy && npm run start"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",
