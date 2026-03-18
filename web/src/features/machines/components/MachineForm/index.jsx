@@ -100,7 +100,6 @@ function MachineForm({
           />
         </FormField>
 
-        {/* TURMA */}
         <FormField label="Turma" htmlFor="machine-shift">
           <select
             id="machine-shift"

@@ -1,133 +1,144 @@
-import { generateSchedule } from '../schedule/generateSchedule.js';
+import { getNextTestTime } from '../../utils/schedule.js';
+import { toMinutes, toTimeString } from '../../utils/time.js';
 
-function toMinutes(time) {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
+function getShiftEndMinutes(shift) {
+  return shift === 'B' || shift === 'D' ? 30 * 60 : 18 * 60;
 }
 
-function isNightShift(shift) {
-  return shift === 'B' || shift === 'D';
-}
-
-function toShiftMinutes(time, shift) {
+function normalizeMinutesForShift(time, shift) {
   let minutes = toMinutes(time);
 
-  if (isNightShift(shift) && minutes < 18 * 60) {
+  if ((shift === 'B' || shift === 'D') && minutes <= 6 * 60) {
     minutes += 24 * 60;
   }
 
   return minutes;
 }
 
-export function buildMachineTimeline(machine) {
-  const safeFrequency = Number(machine.frequency);
+function isTimeWithinBlock(time, startTime, endTime, shift) {
+  const value = normalizeMinutesForShift(time, shift);
+  const start = normalizeMinutesForShift(startTime, shift);
+  const end =
+    endTime === null
+      ? getShiftEndMinutes(shift)
+      : normalizeMinutesForShift(endTime, shift);
 
-  const normalizedStops = (machine.stops || [])
-    .map((stop) => ({
-      stoppedAt: stop.stopTime,
-      resumedAt: stop.resumeTime ?? null,
-      reason: stop.reason,
-    }))
-    .sort(
-      (a, b) =>
-        toShiftMinutes(a.stoppedAt, machine.shift) -
-        toShiftMinutes(b.stoppedAt, machine.shift),
-    );
+  return value >= start && value <= end;
+}
 
-  const doneTimes = (machine.tests || []).map((test) => test.testTime);
-  const doneTimesSet = new Set(doneTimes);
-
-  function getDoneTimesInRange(startTime, endTime = null) {
-    const startMins = toShiftMinutes(startTime, machine.shift);
-
-    return doneTimes
-      .filter((time) => {
-        const timeMins = toShiftMinutes(time, machine.shift);
-
-        if (timeMins < startMins) {
-          return false;
-        }
-
-        if (endTime !== null) {
-          return timeMins <= toShiftMinutes(endTime, machine.shift);
-        }
-
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          toShiftMinutes(a, machine.shift) - toShiftMinutes(b, machine.shift),
-      );
-  }
-
-  function buildClosedBlockTests(startTime, endTime) {
-    const plannedTimes = generateSchedule(
-      startTime,
-      safeFrequency,
-      machine.shift,
-    );
-
-    const visibleTimes = plannedTimes.filter(
-      (time) =>
-        toShiftMinutes(time, machine.shift) <=
-        toShiftMinutes(endTime, machine.shift),
-    );
-
-    return visibleTimes.map((time) => ({
-      time,
-      done: doneTimesSet.has(time),
+function getClosedBlockTests({ block, allTests, shift }) {
+  return allTests
+    .filter((test) =>
+      isTimeWithinBlock(test.testTime, block.startTime, block.endTime, shift),
+    )
+    .map((test) => ({
+      time: test.testTime,
+      done: true,
     }));
-  }
+}
 
-  function buildOpenBlockTests(startTime) {
-    const doneInBlock = getDoneTimesInRange(startTime, null);
+function getOpenBlockPendingTests({ block, machine, allTests }) {
+  const frequencyMinutes = Math.round(machine.frequency * 60);
+  const shiftEndMinutes = getShiftEndMinutes(machine.shift);
 
-    const scheduleBase =
-      doneInBlock.length > 0 ? doneInBlock[doneInBlock.length - 1] : startTime;
+  const doneTimes = new Set(allTests.map((test) => test.testTime));
 
-    let futureTimes = generateSchedule(
-      scheduleBase,
-      safeFrequency,
+  const blockDoneTests = allTests.filter((test) =>
+    isTimeWithinBlock(
+      test.testTime,
+      block.startTime,
+      block.endTime,
       machine.shift,
-    );
+    ),
+  );
 
-    if (doneInBlock.length > 0) {
-      futureTimes = futureTimes.filter(
-        (time) => time !== doneInBlock[doneInBlock.length - 1],
-      );
+  let cursorMinutes =
+    blockDoneTests.length > 0
+      ? normalizeMinutesForShift(
+          blockDoneTests[blockDoneTests.length - 1].testTime,
+          machine.shift,
+        ) + frequencyMinutes
+      : normalizeMinutesForShift(block.startTime, machine.shift);
+
+  const pending = [];
+
+  while (cursorMinutes <= shiftEndMinutes) {
+    const time = toTimeString(cursorMinutes % (24 * 60));
+
+    if (!doneTimes.has(time)) {
+      pending.push({
+        time,
+        done: false,
+      });
     }
 
-    const mergedTimes = [...new Set([...doneInBlock, ...futureTimes])].sort(
-      (a, b) =>
-        toShiftMinutes(a, machine.shift) - toShiftMinutes(b, machine.shift),
-    );
-
-    return mergedTimes.map((time) => ({
-      time,
-      done: doneTimesSet.has(time),
-    }));
+    cursorMinutes += frequencyMinutes;
   }
+
+  return pending;
+}
+
+function getMachineStatus(nextTestTime, shift, isStopped) {
+  if (isStopped) return 'stopped';
+  if (!nextTestTime) return 'on_time';
+
+  const now = new Date();
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const [h, m] = nextTestTime.split(':').map(Number);
+  let nextMinutes = h * 60 + m;
+
+  const isNightShift = shift === 'B' || shift === 'D';
+
+  if (isNightShift) {
+    if (currentMinutes < 6 * 60) {
+      currentMinutes += 24 * 60;
+    }
+
+    if (nextMinutes < 6 * 60) {
+      nextMinutes += 24 * 60;
+    }
+  }
+
+  const diff = currentMinutes - nextMinutes;
+
+  if (diff < 0) return 'on_time';
+  if (diff <= 10) return 'warning';
+
+  return 'late';
+}
+
+export function buildMachineTimeline(machine) {
+  const tests = [...(machine.tests || [])].sort(
+    (a, b) =>
+      normalizeMinutesForShift(a.testTime, machine.shift) -
+      normalizeMinutesForShift(b.testTime, machine.shift),
+  );
+
+  const stops = [...(machine.stops || [])].sort(
+    (a, b) =>
+      normalizeMinutesForShift(a.stopTime, machine.shift) -
+      normalizeMinutesForShift(b.stopTime, machine.shift),
+  );
 
   const blocks = [];
   let currentStart = machine.firstTest;
 
-  for (const stop of normalizedStops) {
+  for (const stop of stops) {
     if (!currentStart) break;
 
     blocks.push({
       startTime: currentStart,
-      endTime: stop.stoppedAt,
-      tests: buildClosedBlockTests(currentStart, stop.stoppedAt),
+      endTime: stop.stopTime,
     });
 
-    currentStart = stop.resumedAt ?? null;
+    currentStart = stop.resumeTime || null;
   }
 
   if (currentStart) {
     blocks.push({
       startTime: currentStart,
       endTime: null,
-      tests: buildOpenBlockTests(currentStart),
     });
   }
 
@@ -135,15 +146,59 @@ export function buildMachineTimeline(machine) {
     blocks.push({
       startTime: machine.firstTest,
       endTime: null,
-      tests: buildOpenBlockTests(machine.firstTest),
     });
   }
 
+  const hydratedBlocks = blocks.map((block) => {
+    const doneTests = getClosedBlockTests({
+      block,
+      allTests: tests,
+      shift: machine.shift,
+    });
+
+    if (block.endTime !== null) {
+      return {
+        ...block,
+        tests: doneTests,
+      };
+    }
+
+    const pendingTests = getOpenBlockPendingTests({
+      block,
+      machine,
+      allTests: tests,
+    });
+
+    return {
+      ...block,
+      tests: [...doneTests, ...pendingTests].sort(
+        (a, b) =>
+          normalizeMinutesForShift(a.time, machine.shift) -
+          normalizeMinutesForShift(b.time, machine.shift),
+      ),
+    };
+  });
+
+  const openStop = stops.find((stop) => !stop.resumeTime);
+  const isStopped = Boolean(openStop);
+
+  const nextTestTime = isStopped
+    ? null
+    : getNextTestTime({
+        machine,
+        tests,
+        stops,
+      });
+
+  const status = getMachineStatus(nextTestTime, machine.shift, isStopped);
+
   return {
     ...machine,
-    frequency: safeFrequency,
-    stops: normalizedStops,
-    tests: machine.tests ?? [],
-    blocks,
+    tests,
+    stops,
+    blocks: hydratedBlocks,
+    nextTestTime,
+    status,
+    isStopped,
   };
 }

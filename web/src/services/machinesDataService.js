@@ -1,4 +1,4 @@
-const API = 'http://localhost:3001/api';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 async function parseResponse(response, fallbackMessage) {
   const text = await response.text();
@@ -15,21 +15,11 @@ async function parseResponse(response, fallbackMessage) {
     throw new Error(data?.error || fallbackMessage);
   }
 
-  if (!data) {
-    throw new Error('Resposta vazia da API.');
-  }
-
   return data;
 }
 
 export async function getActiveShiftSessionId() {
-  const response = await fetch(`${API}/shift-session/active`);
-
-  if (!response.ok) {
-    throw new Error('Erro ao buscar turno ativo');
-  }
-
-  const data = await response.json();
+  const data = await getActiveShiftSession();
   return data?.id ?? null;
 }
 
@@ -90,21 +80,7 @@ export async function insertTest(machineId, data) {
 
 export async function getActiveShiftSession() {
   const response = await fetch(`${API}/shift-session/active`);
-  const text = await response.text();
-
-  if (!response.ok) {
-    throw new Error(text || 'Erro ao buscar turno atual');
-  }
-
-  if (!text) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  return parseResponse(response, 'Erro ao buscar turno atual.');
 }
 
 export async function deactivateShiftSession(id) {
@@ -112,13 +88,7 @@ export async function deactivateShiftSession(id) {
     method: 'POST',
   });
 
-  const text = await response.text();
-
-  if (!response.ok) {
-    throw new Error(text || 'Erro ao encerrar turno atual');
-  }
-
-  return text ? JSON.parse(text) : true;
+  return parseResponse(response, 'Erro ao encerrar turno atual.');
 }
 
 export async function startNewShiftSession(shift) {

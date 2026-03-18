@@ -1,5 +1,3 @@
-import { toShiftMinutes } from '../../../utils/shift';
-import { generateSchedule } from '../../../utils/schedule';
 import { useEffect, useReducer, useState } from 'react';
 import { formatTimeInput } from '../../../utils/time';
 import { filterMachines } from '../utils/filters';
@@ -19,111 +17,29 @@ import {
 } from '../../../services/machinesDataService';
 
 function normalizeMachineFromApi(machine) {
-  try {
-    const safeFrequency = Number(machine.frequency);
+  return {
+    id: machine.id,
+    code: machine.code ?? '',
+    material: machine.material ?? '',
+    frequency: Number(machine.frequency ?? 0),
+    firstTest: machine.firstTest ?? '00:00',
+    shift: machine.shift ?? 'A',
 
-    if (!safeFrequency || safeFrequency <= 0) {
-      throw new Error(
-        `Frequência inválida para a máquina ${machine.code}: ${machine.frequency}`,
-      );
-    }
+    stops: machine.stops ?? [],
+    tests: machine.tests ?? [],
+    blocks: machine.blocks ?? [],
 
-    const normalizedStops = (machine.stops || [])
-      .map((stop) => ({
-        stoppedAt: stop.stopTime,
-        resumedAt: stop.resumeTime ?? null,
-        reason: stop.reason,
-      }))
-      .sort(
-        (a, b) =>
-          toShiftMinutes(a.stoppedAt, machine.shift) -
-          toShiftMinutes(b.stoppedAt, machine.shift),
-      );
-
-    const doneTimes = new Set(
-      (machine.tests || []).map((test) => test.testTime),
-    );
-
-    const buildTests = (startTime, endTime = null) => {
-      const plannedTimes = generateSchedule(
-        startTime,
-        safeFrequency,
-        machine.shift,
-      );
-
-      const visibleTimes =
-        endTime === null
-          ? plannedTimes
-          : plannedTimes.filter(
-              (time) =>
-                toShiftMinutes(time, machine.shift) <=
-                toShiftMinutes(endTime, machine.shift),
-            );
-
-      return visibleTimes.map((time) => ({
-        time,
-        done: doneTimes.has(time),
-      }));
-    };
-
-    const blocks = [];
-    let currentStart = machine.firstTest;
-
-    for (const stop of normalizedStops) {
-      blocks.push({
-        startTime: currentStart,
-        endTime: stop.stoppedAt,
-        tests: buildTests(currentStart, stop.stoppedAt),
-      });
-
-      if (stop.resumedAt) {
-        currentStart = stop.resumedAt;
-      } else {
-        currentStart = null;
-      }
-    }
-
-    if (currentStart) {
-      blocks.push({
-        startTime: currentStart,
-        endTime: null,
-        tests: buildTests(currentStart),
-      });
-    }
-
-    if (blocks.length === 0) {
-      blocks.push({
-        startTime: machine.firstTest,
-        endTime: null,
-        tests: buildTests(machine.firstTest),
-      });
-    }
-
-    return {
-      ...machine,
-      frequency: Number(machine.frequency),
-      stops: machine.stops ?? [],
-      tests: machine.tests ?? [],
-      blocks: machine.blocks ?? [],
-    };
-  } catch (error) {
-    console.error('Erro ao normalizar máquina:', machine, error);
-
-    return {
-      ...machine,
-      frequency: Number(machine.frequency),
-      stops: machine.stops ?? [],
-      tests: machine.tests ?? [],
-      blocks: machine.blocks ?? [],
-    };
-  }
+    nextTestTime: machine.nextTestTime ?? null,
+    status: machine.status ?? 'on_time',
+    isStopped: machine.isStopped ?? false,
+  };
 }
 
 export function useMachinesController() {
   const [code, setCode] = useState('');
   const [material, setMaterial] = useState('');
   const [frequency, setFrequency] = useState(2);
-  const [firstTest, setFirstTest] = useState('06:00');
+  const [firstTest, setFirstTest] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [shift, setShift] = useState('A');
   const [errors, setErrors] = useState({});
@@ -151,12 +67,11 @@ export function useMachinesController() {
     setCode('');
     setMaterial('');
     setFrequency(2);
-    setFirstTest('06:00');
-    setShift('A');
+    setFirstTest('');
     setErrors({});
   }
 
-  function validateMachineForm(machineData, currentMachines) {
+  function validateMachineForm(machineData) {
     const newErrors = {};
 
     if (!machineData.code.trim()) {
@@ -181,14 +96,6 @@ export function useMachinesController() {
     }
 
     const normalizedCode = machineData.code.trim().toUpperCase();
-
-    const alreadyExists = currentMachines.some(
-      (m) => (m.code || '').trim().toUpperCase() === normalizedCode,
-    );
-
-    if (alreadyExists) {
-      newErrors.code = 'Código da máquina já existe.';
-    }
 
     return {
       errors: newErrors,
@@ -326,7 +233,7 @@ export function useMachinesController() {
         errors: newErrors,
         normalizedCode,
         normalizedFirstTest,
-      } = validateMachineForm(machineData, machines);
+      } = validateMachineForm(machineData);
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
