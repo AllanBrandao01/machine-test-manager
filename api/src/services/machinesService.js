@@ -1,6 +1,35 @@
 import prisma from '../lib/prisma.js';
 import { buildMachineTimeline } from '../domain/machines/buildMachineTimeline.js';
 import { toMinutes } from '../utils/time.js';
+import { BadRequestError, NotFoundError } from '../utils/httpErrors.js';
+
+function getCurrentTimeInSaoPaulo() {
+  const formatter = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  return formatter.format(new Date());
+}
+
+function isTimeWithinShift(time, shift) {
+  const minutes = toMinutes(time);
+
+  const isDayShift = shift === 'A' || shift === 'C';
+
+  if (isDayShift) {
+    return minutes >= 360 && minutes <= 1079; // 06:00 → 17:59
+  }
+
+  return minutes >= 1080 || minutes <= 359; // 18:00 → 05:59
+}
+
+function getCurrentAbsoluteMinutesForShift(shift) {
+  const nowTime = getCurrentTimeInSaoPaulo();
+  return toAbsoluteMinutes(nowTime, shift);
+}
 
 function isValidTime(value) {
   return /^\d{2}:\d{2}$/.test(value);
@@ -46,6 +75,23 @@ function assertValidMachinePayload(data) {
   assertValidShift(data.shift);
   assertValidTime(data.firstTest, 'Horário do primeiro teste');
   return assertValidFrequency(data.frequency);
+
+  if (!isTimeWithinShift(data.firstTest, data.shift)) {
+    throw new Error(
+      'Horário do primeiro teste não pertence ao turno selecionado.',
+    );
+  }
+}
+
+function toAbsoluteMinutes(time, shift) {
+  let minutes = toMinutes(time);
+  const isNightShift = shift === 'B' || shift === 'D';
+
+  if (isNightShift && minutes <= 6 * 60) {
+    minutes += 24 * 60;
+  }
+
+  return minutes;
 }
 
 async function findMachineWithRelations(id) {
@@ -84,7 +130,23 @@ export async function deleteMachine(id) {
 }
 
 export async function findAllMachines() {
+  const activeShiftSession = await prisma.shiftSession.findFirst({
+    where: {
+      endedAt: null,
+    },
+    orderBy: {
+      startedAt: 'desc',
+    },
+  });
+
+  if (!activeShiftSession) {
+    return [];
+  }
+
   const machines = await prisma.machine.findMany({
+    where: {
+      shiftSessionId: activeShiftSession.id,
+    },
     include: {
       shiftSession: true,
       stops: {
@@ -123,6 +185,12 @@ export async function createMachine(data) {
   const safeFrequency = assertValidMachinePayload(data);
   const normalizedCode = data.code.trim().toUpperCase();
   const normalizedMaterial = data.material.trim();
+
+  if (!isTimeWithinShift(data.firstTest, data.shift)) {
+    throw new Error(
+      'Horário do primeiro teste não pertence ao turno selecionado.',
+    );
+  }
 
   if (data.shift !== activeShiftSession.shift) {
     throw new Error('O turno da máquina deve ser igual ao turno ativo.');
@@ -195,7 +263,11 @@ export async function stopMachine(machineId, data) {
 
   const lastTest = machine.tests[machine.tests.length - 1];
 
-  if (lastTest && toMinutes(data.stopTime) < toMinutes(lastTest.testTime)) {
+  if (
+    lastTest &&
+    toAbsoluteMinutes(data.stopTime, machine.shift) <
+      toAbsoluteMinutes(lastTest.testTime, machine.shift)
+  ) {
     throw new Error(
       'Horário de parada não pode ser menor que o último teste realizado.',
     );
@@ -237,7 +309,10 @@ export async function resumeMachine(machineId, data) {
     throw new Error('Nenhuma parada em aberto encontrada para esta máquina.');
   }
 
-  if (toMinutes(data.resumeTime) <= toMinutes(lastOpenStop.stopTime)) {
+  if (
+    toAbsoluteMinutes(data.resumeTime, machine.shift) <=
+    toAbsoluteMinutes(lastOpenStop.stopTime, machine.shift)
+  ) {
     throw new Error(
       'Horário de retorno deve ser maior que o horário de parada.',
     );
@@ -280,9 +355,43 @@ export async function registerMachineTest(machineId, data) {
     throw new Error('Não é possível registrar teste com a máquina parada.');
   }
 
+  const hydratedMachine = buildMachineTimeline(machine);
+
+  const pendingTests = hydratedMachine.blocks
+    .flatMap((block) => block.tests)
+    .filter((t) => !t.done);
+
+  if (pendingTests.length === 0) {
+    throw new Error('Nenhum teste pendente.');
+  }
+
+  const nextExpectedTest = pendingTests[0];
+
+  if (data.testTime !== nextExpectedTest.time) {
+    throw new Error(
+      `Ainda não é o horário deste teste. Próximo teste às ${nextExpectedTest.time}.`,
+    );
+  }
+
+  const nowAbsoluteMinutes = getCurrentAbsoluteMinutesForShift(machine.shift);
+  const expectedAbsoluteMinutes = toAbsoluteMinutes(
+    nextExpectedTest.time,
+    machine.shift,
+  );
+
+  if (nowAbsoluteMinutes < expectedAbsoluteMinutes) {
+    throw new Error(
+      `Ainda não é o horário deste teste. Próximo teste às ${nextExpectedTest.time}.`,
+    );
+  }
+
   const lastTest = machine.tests[machine.tests.length - 1];
 
-  if (lastTest && toMinutes(data.testTime) <= toMinutes(lastTest.testTime)) {
+  if (
+    lastTest &&
+    toAbsoluteMinutes(data.testTime, machine.shift) <=
+      toAbsoluteMinutes(lastTest.testTime, machine.shift)
+  ) {
     throw new Error(
       'Horário de teste deve ser maior que o último teste realizado.',
     );
@@ -353,6 +462,12 @@ export async function updateMachine(id, data) {
 
   assertValidShift(nextShift);
   assertValidTime(nextFirstTest, 'Horário do primeiro teste');
+
+  if (!isTimeWithinShift(nextFirstTest, nextShift)) {
+    throw new Error(
+      'Horário do primeiro teste não pertence ao turno selecionado.',
+    );
+  }
 
   if (isStopped && nextFrequency !== machine.frequency) {
     throw new Error(

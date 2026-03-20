@@ -6,6 +6,53 @@ import {
   isNowInsideShiftWindow,
 } from '../../../../utils/shift';
 
+function toMinutes(time) {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function toAbsoluteMinutes(time, shift) {
+  let minutes = toMinutes(time);
+
+  const isNightShift = shift === 'B' || shift === 'D';
+
+  if (isNightShift && minutes <= 360) {
+    minutes += 1440;
+  }
+
+  return minutes;
+}
+
+function getNowAbsoluteMinutes(shift) {
+  const now = new Date();
+  let minutes = now.getHours() * 60 + now.getMinutes();
+
+  const isNightShift = shift === 'B' || shift === 'D';
+
+  if (isNightShift && minutes <= 360) {
+    minutes += 1440;
+  }
+
+  return minutes;
+}
+
+function getMachineStatus(machine) {
+  if (machine.isStopped) return 'stopped';
+
+  const nextTest = machine.nextTestTime;
+  if (!nextTest) return 'ok';
+
+  const now = getNowAbsoluteMinutes(machine.shift);
+  const expected = toAbsoluteMinutes(nextTest, machine.shift);
+
+  const diff = now - expected;
+
+  if (diff >= 30) return 'late';
+  if (diff >= 0) return 'warning';
+
+  return 'ok';
+}
+
 function MachineCard({
   machine,
   onStop,
@@ -22,14 +69,21 @@ function MachineCard({
     : null;
 
   const [isEditing, setIsEditing] = useState(false);
+  const [editCode, setEditCode] = useState(machine.code || '');
   const [editMaterial, setEditMaterial] = useState(machine.material || '');
   const [editFrequency, setEditFrequency] = useState(machine.frequency || 2);
+  const [editShift, setEditShift] = useState(machine.shift || 'A');
+  const [editFirstTest, setEditFirstTest] = useState(machine.firstTest || '');
 
-  const nextTestTime = currentBlock?.tests?.find((t) => !t.done)?.time ?? null;
+  const nextTest = machine.nextTestTime;
+  const status = getMachineStatus(machine);
 
   function startEdit() {
+    setEditCode(machine.code || '');
     setEditMaterial(machine.material || '');
     setEditFrequency(machine.frequency || 2);
+    setEditShift(machine.shift || 'A');
+    setEditFirstTest(machine.firstTest || '');
     setIsEditing(true);
   }
 
@@ -42,14 +96,26 @@ function MachineCard({
     }) ??
       false);
 
+  const canExecuteTest = (() => {
+    if (!nextTest) return false;
+    if (machine.isStopped) return false;
+
+    const now = getNowAbsoluteMinutes(machine.shift);
+    const expected = toAbsoluteMinutes(nextTest, machine.shift);
+
+    return now >= expected;
+  })();
+
   return (
     <div
       className={`${styles.card} ${
-        !isRunning
+        status === 'stopped'
           ? styles.machineStopped
-          : hasLateTest
+          : status === 'late'
             ? styles.machineAlert
-            : styles.machineRunning
+            : status === 'warning'
+              ? styles.machineWarning
+              : styles.machineRunning
       }`}
     >
       <div className={styles.header}>
@@ -60,19 +126,38 @@ function MachineCard({
 
         <span
           className={`${styles.statusBadge} ${
-            !isRunning
+            status === 'stopped'
               ? styles.stopped
-              : hasLateTest
+              : status === 'late'
                 ? styles.alert
-                : styles.running
+                : status === 'warning'
+                  ? styles.warning
+                  : styles.running
           }`}
         >
-          {!isRunning ? 'Parada' : hasLateTest ? 'Atrasada' : 'Rodando'}
+          {status === 'stopped'
+            ? 'Parada'
+            : status === 'late'
+              ? 'Atrasada'
+              : status === 'warning'
+                ? 'Atenção'
+                : 'Rodando'}
         </span>
       </div>
 
       {isEditing ? (
         <div className={styles.editSection}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>
+              Código
+              <input
+                className={styles.input}
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+              />
+            </label>
+          </div>
+
           <div className={styles.fieldGroup}>
             <label className={styles.label}>
               Material
@@ -98,13 +183,44 @@ function MachineCard({
             </label>
           </div>
 
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>
+              Turno
+              <select
+                className={styles.input}
+                value={editShift}
+                onChange={(e) => setEditShift(e.target.value)}
+              >
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+              </select>
+            </label>
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>
+              Primeiro teste
+              <input
+                type="time"
+                className={styles.input}
+                value={editFirstTest}
+                onChange={(e) => setEditFirstTest(e.target.value)}
+              />
+            </label>
+          </div>
+
           <div className={styles.actionsRow}>
             <button
               className={styles.primaryButton}
               onClick={() => {
                 onUpdate(machine.id, {
+                  code: editCode,
                   material: editMaterial,
                   frequency: editFrequency,
+                  shift: editShift,
+                  firstTest: editFirstTest,
                 });
                 setIsEditing(false);
               }}
@@ -127,6 +243,9 @@ function MachineCard({
           </p>
           <p className={styles.infoText}>
             <strong>Frequência:</strong> {machine.frequency}h
+          </p>
+          <p className={styles.infoText}>
+            <strong>Primeiro teste:</strong> {machine.firstTest}
           </p>
 
           <button className={styles.secondaryButton} onClick={startEdit}>
@@ -166,7 +285,7 @@ function MachineCard({
                   const isNext =
                     blockIsRunning &&
                     isRunning &&
-                    test.time === nextTestTime &&
+                    test.time === machine.nextTestTime &&
                     !test.done;
 
                   const isLate =
@@ -226,7 +345,7 @@ function MachineCard({
           <ul className={styles.historyList}>
             {machine.stops.map((stop, idx) => (
               <li key={idx} className={styles.historyItem}>
-                Parou às {stop.stoppedAt} - Motivo: {stop.reason}
+                Parou às {stop.stopTime} - Motivo: {stop.reason}
               </li>
             ))}
           </ul>
@@ -254,7 +373,7 @@ function MachineCard({
           className={`${styles.primaryButton} ${
             hasLateTest ? styles.attentionButton : ''
           }`}
-          disabled={!isRunning}
+          disabled={!canExecuteTest}
           onClick={() => onCompleteNext(machine.id)}
         >
           Concluir próximo teste {hasLateTest ? '⚠' : ''}

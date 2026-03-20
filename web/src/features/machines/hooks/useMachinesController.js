@@ -9,8 +9,6 @@ import {
   insertStop,
   updateStopResume,
   insertTest,
-  getActiveShiftSession,
-  deactivateShiftSession,
   startNewShiftSession,
   updateMachineRequest,
   deleteMachineRequest,
@@ -24,15 +22,25 @@ function normalizeMachineFromApi(machine) {
     frequency: Number(machine.frequency ?? 0),
     firstTest: machine.firstTest ?? '00:00',
     shift: machine.shift ?? 'A',
-
     stops: machine.stops ?? [],
     tests: machine.tests ?? [],
     blocks: machine.blocks ?? [],
-
     nextTestTime: machine.nextTestTime ?? null,
     status: machine.status ?? 'on_time',
     isStopped: machine.isStopped ?? false,
   };
+}
+
+function isTimeWithinShift(time, shift) {
+  const [hours, minutes] = time.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes;
+  const isDayShift = shift === 'A' || shift === 'C';
+
+  if (isDayShift) {
+    return totalMinutes >= 360 && totalMinutes <= 1079; // 06:00 - 17:59
+  }
+
+  return totalMinutes >= 1080 || totalMinutes <= 359; // 18:00 - 05:59
 }
 
 export function useMachinesController() {
@@ -51,7 +59,10 @@ export function useMachinesController() {
     open: false,
     machineId: null,
   });
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = useState({
+    type: '',
+    message: '',
+  });
   const [machines, dispatch] = useReducer(machinesReducer, []);
   const [resumeModal, setResumeModal] = useState({
     open: false,
@@ -61,6 +72,10 @@ export function useMachinesController() {
 
   function showFeedback(type, message) {
     setFeedback({ type, message });
+  }
+
+  function clearFeedback() {
+    setFeedback({ type: '', message: '' });
   }
 
   function resetMachineForm() {
@@ -74,16 +89,17 @@ export function useMachinesController() {
   function validateMachineForm(machineData) {
     const newErrors = {};
 
-    if (!machineData.code.trim()) {
+    if (!machineData.code?.trim()) {
       newErrors.code = 'Informe o nome da máquina.';
     }
 
-    if (!machineData.material.trim()) {
+    if (!machineData.material?.trim()) {
       newErrors.material = 'Informe o nome do material.';
     }
 
     if (
       typeof machineData.frequency !== 'number' ||
+      Number.isNaN(machineData.frequency) ||
       machineData.frequency < 0.5
     ) {
       newErrors.frequency = 'A frequência mínima é 0.5 (30 minutos).';
@@ -93,9 +109,12 @@ export function useMachinesController() {
 
     if (!normalizedFirstTest) {
       newErrors.firstTest = 'Horário do primeiro teste inválido.';
+    } else if (!isTimeWithinShift(normalizedFirstTest, machineData.shift)) {
+      newErrors.firstTest =
+        'Horário do primeiro teste não pertence ao turno selecionado.';
     }
 
-    const normalizedCode = machineData.code.trim().toUpperCase();
+    const normalizedCode = machineData.code?.trim().toUpperCase() ?? '';
 
     return {
       errors: newErrors,
@@ -118,13 +137,12 @@ export function useMachinesController() {
       await startNewShiftFlow(shift);
 
       dispatch({ type: 'SET_MACHINES', payload: [] });
-
       resetMachineForm();
       showFeedback('success', 'Novo turno iniciado com sucesso.');
-      setNewShiftModal(false);
     } catch (error) {
       console.error(error);
       showFeedback('error', error.message || 'Erro ao iniciar novo turno.');
+    } finally {
       setNewShiftModal(false);
     }
   }
@@ -164,6 +182,7 @@ export function useMachinesController() {
   async function completeNextTestFlow(machineId, testValue) {
     try {
       const machine = machines.find((m) => m.id === machineId);
+
       if (!machine) {
         showFeedback('error', 'Máquina não encontrada.');
         return;
@@ -241,7 +260,7 @@ export function useMachinesController() {
       }
 
       setErrors({});
-      setFeedback(null);
+      clearFeedback();
 
       const data = await insertMachine({
         code: normalizedCode,
@@ -288,7 +307,10 @@ export function useMachinesController() {
 
   async function handleStopMachine(machineId, stopTime, reason) {
     const machine = machines.find((m) => m.id === machineId);
-    if (!machine) return;
+    if (!machine) {
+      showFeedback('error', 'Máquina não encontrada.');
+      return;
+    }
 
     const lastBlock = machine.blocks?.[machine.blocks.length - 1];
 
@@ -303,6 +325,7 @@ export function useMachinesController() {
     }
 
     const formattedStopTime = formatTimeInput(stopTime);
+
     if (!formattedStopTime) {
       showFeedback('error', 'Horário de parada inválido.');
       return;
@@ -325,7 +348,10 @@ export function useMachinesController() {
 
   async function handleResumeMachine(machineId, resumeTime) {
     const machine = machines.find((m) => m.id === machineId);
-    if (!machine) return;
+    if (!machine) {
+      showFeedback('error', 'Máquina não encontrada.');
+      return;
+    }
 
     const lastBlock = machine.blocks?.[machine.blocks.length - 1];
 
@@ -340,6 +366,7 @@ export function useMachinesController() {
     }
 
     const formattedResumeTime = formatTimeInput(resumeTime);
+
     if (!formattedResumeTime) {
       showFeedback('error', 'Horário de retomada inválido.');
       return;
@@ -367,11 +394,53 @@ export function useMachinesController() {
 
   async function handleUpdateMachine(machineId, updates) {
     const machine = machines.find((m) => m.id === machineId);
-    if (!machine) return;
+
+    if (!machine) {
+      showFeedback('error', 'Máquina não encontrada.');
+      return;
+    }
 
     if (typeof updates.frequency === 'number' && updates.frequency < 0.5) {
       showFeedback('error', 'A frequência mínima é 0.5 (30 minutos).');
       return;
+    }
+
+    if (updates.firstTest) {
+      const normalizedFirstTest = formatTimeInput(updates.firstTest);
+
+      if (!normalizedFirstTest) {
+        showFeedback('error', 'Horário do primeiro teste inválido.');
+        return;
+      }
+
+      const nextShift = updates.shift || machine.shift;
+
+      if (!isTimeWithinShift(normalizedFirstTest, nextShift)) {
+        showFeedback(
+          'error',
+          'Horário do primeiro teste não pertence ao turno selecionado.',
+        );
+        return;
+      }
+
+      updates = {
+        ...updates,
+        firstTest: normalizedFirstTest,
+      };
+    }
+
+    if (updates.code !== undefined) {
+      updates = {
+        ...updates,
+        code: updates.code.trim().toUpperCase(),
+      };
+    }
+
+    if (updates.material !== undefined) {
+      updates = {
+        ...updates,
+        material: updates.material.trim(),
+      };
     }
 
     try {
@@ -391,12 +460,6 @@ export function useMachinesController() {
   async function startNewShiftFlow(currentShiftValue) {
     if (!currentShiftValue) {
       throw new Error('Turma inválida para iniciar turno.');
-    }
-
-    const currentShift = await getActiveShiftSession();
-
-    if (currentShift?.id) {
-      await deactivateShiftSession(currentShift.id);
     }
 
     return startNewShiftSession(currentShiftValue);
@@ -433,7 +496,7 @@ export function useMachinesController() {
     setShift,
     errors,
     feedback,
-    setFeedback,
+    clearFeedback,
     handleAddMachine,
     handleCompleteNextTest: completeNextTestFlow,
     handleUpdateMachine,

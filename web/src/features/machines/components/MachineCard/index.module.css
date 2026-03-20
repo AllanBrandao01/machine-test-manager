@@ -256,3 +256,29 @@
 .deleteButton:hover {
   text-decoration: underline;
 }
+
+.green {
+  border-left: 6px solid #22c55e;
+}
+
+.yellow {
+  border-left: 6px solid #facc15;
+}
+
+.red {
+  border-left: 6px solid #ef4444;
+}
+
+.stopped {
+  border-left: 6px solid #6b7280;
+  opacity: 0.8;
+}
+
+.machineWarning {
+  border-left: 6px solid #facc15;
+}
+
+.warning {
+  background: #facc15;
+  color: #1f2937;
+}

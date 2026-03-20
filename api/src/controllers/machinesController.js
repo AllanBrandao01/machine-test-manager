@@ -33,10 +33,10 @@ function getStatusCode(error) {
   return 500;
 }
 
-function handleControllerError(res, error) {
-  const status = error.statusCode || 500;
+function handleControllerError(error, res) {
+  console.error(error);
 
-  return res.status(status).json({
+  return res.status(error.statusCode || 500).json({
     error: error.message || 'Erro interno do servidor.',
   });
 }
@@ -46,7 +46,7 @@ export async function getMachines(req, res) {
     const machines = await findAllMachines();
     return res.status(200).json(machines);
   } catch (error) {
-    return handleControllerError(res, error);
+    return handleControllerError(error, res);
   }
 }
 
@@ -55,7 +55,7 @@ export async function postMachine(req, res) {
     const machine = await createMachine(req.body);
     return res.status(201).json(machine);
   } catch (error) {
-    return handleControllerError(res, error);
+    return handleControllerError(error, res);
   }
 }
 
@@ -66,7 +66,7 @@ export async function postStopMachine(req, res) {
 
     return res.status(200).json(machine);
   } catch (error) {
-    return handleControllerError(res, error);
+    return handleControllerError(error, res);
   }
 }
 
@@ -77,7 +77,7 @@ export async function postResumeMachine(req, res) {
 
     return res.status(200).json(machine);
   } catch (error) {
-    return handleControllerError(res, error);
+    return handleControllerError(error, res);
   }
 }
 
@@ -88,7 +88,7 @@ export async function postMachineTest(req, res) {
 
     return res.status(200).json(machine);
   } catch (error) {
-    return handleControllerError(res, error);
+    return handleControllerError(error, res);
   }
 }
 
@@ -99,7 +99,7 @@ export async function updateMachineController(req, res) {
 
     return res.status(200).json(machine);
   } catch (error) {
-    return handleControllerError(res, error);
+    return handleControllerError(error, res);
   }
 }
 
@@ -110,6 +110,6 @@ export async function deleteMachineController(req, res) {
 
     return res.status(200).json(result);
   } catch (error) {
-    return handleControllerError(res, error);
+    return handleControllerError(error, res);
   }
 }
