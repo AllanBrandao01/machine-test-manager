@@ -5,6 +5,9 @@ import {
   getNowShiftMinutes,
   isNowInsideShiftWindow,
 } from '../../../../utils/shift';
+import { Button } from '../../../../components/ui/Button';
+import { Input } from '../../../../components/ui/Input';
+import { Select } from '../../../../components/ui/Select';
 
 const CardContainer = styled.div`
   background: #ffffff;
@@ -33,8 +36,8 @@ const CardContainer = styled.div`
   ${({ $status }) =>
     $status === 'late' &&
     css`
-      border-left-color: #d18b16;
-      background: #fff9ef;
+      border-left-color: #e53935;
+      background: #ffffff;
     `}
 
   ${({ $status }) =>
@@ -79,13 +82,13 @@ const StatusBadge = styled.span`
         `
       : $status === 'late'
         ? css`
-            background: #fff7e6;
-            color: #b7791f;
+            background: #fdecea;
+            color: #c62828;
           `
         : $status === 'warning'
           ? css`
-              background: #facc15;
-              color: #1f2937;
+              background: #fff4cc;
+              color: #8a6a00;
             `
           : css`
               background: #e8f3f2;
@@ -461,7 +464,7 @@ function MachineCard({
           {status === 'stopped'
             ? 'Parada'
             : status === 'late'
-              ? 'Atrasada'
+              ? 'Atrasado'
               : status === 'warning'
                 ? 'Atenção'
                 : 'Rodando'}
