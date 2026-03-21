@@ -1,10 +1,353 @@
 import { useState } from 'react';
-import styles from './index.module.css';
+import styled, { css } from 'styled-components';
 import {
   toShiftMinutes,
   getNowShiftMinutes,
   isNowInsideShiftWindow,
 } from '../../../../utils/shift';
+
+const CardContainer = styled.div`
+  background: #ffffff;
+  border: 1px solid #d7e6e4;
+  border-left: 6px solid #1b6f6a;
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 18px rgba(27, 111, 106, 0.08);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(27, 111, 106, 0.14);
+  }
+
+  ${({ $status }) =>
+    $status === 'stopped' &&
+    css`
+      border-left-color: #c0392b;
+      background: #fff6f5;
+    `}
+
+  ${({ $status }) =>
+    $status === 'late' &&
+    css`
+      border-left-color: #d18b16;
+      background: #fff9ef;
+    `}
+
+  ${({ $status }) =>
+    $status === 'warning' &&
+    css`
+      border-left-color: #facc15;
+    `}
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const Title = styled.h3`
+  margin: 0 0 4px;
+  color: #1b6f6a;
+  font-size: 1.25rem;
+`;
+
+const Subtitle = styled.p`
+  margin: 0;
+  color: #5f6b6a;
+  font-size: 0.95rem;
+`;
+
+const StatusBadge = styled.span`
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+
+  ${({ $status }) =>
+    $status === 'stopped'
+      ? css`
+          background: #fdecec;
+          color: #c0392b;
+        `
+      : $status === 'late'
+        ? css`
+            background: #fff7e6;
+            color: #b7791f;
+          `
+        : $status === 'warning'
+          ? css`
+              background: #facc15;
+              color: #1f2937;
+            `
+          : css`
+              background: #e8f3f2;
+              color: #1b6f6a;
+            `}
+`;
+
+const InfoSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+`;
+
+const InfoText = styled.p`
+  margin: 0;
+  color: #243534;
+  font-size: 0.95rem;
+`;
+
+const EditSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+`;
+
+const FieldGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const FieldLabel = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  color: #244240;
+  font-size: 0.95rem;
+`;
+
+const ActionsRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+`;
+
+const SecondaryButton = styled.button`
+  border: none;
+  background: #e8f3f2;
+  color: #1b6f6a;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+
+  &:hover {
+    background: #d9ecea;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const DeleteButton = styled.button`
+  border: none;
+  background: #fdecec;
+  color: #c0392b;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+
+  &:hover {
+    background: #f9d9d6;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const DangerButton = styled.button`
+  border: none;
+  background: #c0392b;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+
+  &:hover {
+    background: #a93226;
+  }
+
+  &:disabled {
+    background: #e6b8b3;
+    cursor: not-allowed;
+  }
+`;
+
+const PrimaryActionButton = styled.button`
+  border: none;
+  background: #1b6f6a;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+
+  &:hover {
+    background: #155a55;
+  }
+
+  &:disabled {
+    background: #9bbdbb;
+    cursor: not-allowed;
+  }
+
+  ${({ $attention }) =>
+    $attention &&
+    css`
+      background: #d18b16;
+
+      &:hover {
+        background: #b7791f;
+      }
+
+      &:disabled {
+        background: #e7cb98;
+      }
+    `}
+`;
+
+const BlocksSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+`;
+
+const BlockContainer = styled.div`
+  background: #f8fbfb;
+  border: 1px solid #d7e6e4;
+  border-radius: 12px;
+  padding: 14px;
+`;
+
+const BlockTitle = styled.strong`
+  display: block;
+  margin-bottom: 10px;
+  color: #1b6f6a;
+  font-size: 0.95rem;
+`;
+
+const TestList = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const TestItem = styled.li`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e3eceb;
+
+  ${({ $variant }) =>
+    $variant === 'done' &&
+    css`
+      background: #edf8f3;
+      border-color: #b9dfcb;
+    `}
+
+  ${({ $variant }) =>
+    $variant === 'late' &&
+    css`
+      background: #fff5f4;
+      border-color: #efc2bc;
+    `}
+
+  ${({ $variant }) =>
+    $variant === 'next' &&
+    css`
+      background: #fff9e8;
+      border-color: #ead79b;
+    `}
+`;
+
+const TestTime = styled.span`
+  font-weight: 700;
+  color: #244240;
+
+  ${({ $done }) =>
+    $done &&
+    css`
+      color: #4d7c6f;
+    `}
+`;
+
+const TestMeta = styled.span`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5f6b6a;
+`;
+
+const StopText = styled.p`
+  margin: 12px 0 0;
+  color: #8a3b32;
+  font-size: 0.9rem;
+  font-weight: 600;
+`;
+
+const HistorySection = styled.div`
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #dfe9e7;
+`;
+
+const HistoryTitle = styled.strong`
+  display: block;
+  margin-bottom: 10px;
+  color: #1b6f6a;
+  font-size: 0.95rem;
+`;
+
+const HistoryList = styled.ul`
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const HistoryItem = styled.li`
+  color: #465857;
+  font-size: 0.92rem;
+`;
 
 function toMinutes(time) {
   const [h, m] = time.split(':').map(Number);
@@ -107,34 +450,14 @@ function MachineCard({
   })();
 
   return (
-    <div
-      className={`${styles.card} ${
-        status === 'stopped'
-          ? styles.machineStopped
-          : status === 'late'
-            ? styles.machineAlert
-            : status === 'warning'
-              ? styles.machineWarning
-              : styles.machineRunning
-      }`}
-    >
-      <div className={styles.header}>
+    <CardContainer $status={status}>
+      <Header>
         <div>
-          <h3 className={styles.code}>{machine.code}</h3>
-          <p className={styles.shift}>Turma: {machine.shift}</p>
+          <Title>{machine.code}</Title>
+          <Subtitle>Turma: {machine.shift}</Subtitle>
         </div>
 
-        <span
-          className={`${styles.statusBadge} ${
-            status === 'stopped'
-              ? styles.stopped
-              : status === 'late'
-                ? styles.alert
-                : status === 'warning'
-                  ? styles.warning
-                  : styles.running
-          }`}
-        >
+        <StatusBadge $status={status}>
           {status === 'stopped'
             ? 'Parada'
             : status === 'late'
@@ -142,52 +465,48 @@ function MachineCard({
               : status === 'warning'
                 ? 'Atenção'
                 : 'Rodando'}
-        </span>
-      </div>
+        </StatusBadge>
+      </Header>
 
       {isEditing ? (
-        <div className={styles.editSection}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label}>
+        <EditSection>
+          <FieldGroup>
+            <FieldLabel>
               Código
-              <input
-                className={styles.input}
+              <Input
                 value={editCode}
                 onChange={(e) => setEditCode(e.target.value)}
               />
-            </label>
-          </div>
+            </FieldLabel>
+          </FieldGroup>
 
-          <div className={styles.fieldGroup}>
-            <label className={styles.label}>
+          <FieldGroup>
+            <FieldLabel>
               Material
-              <input
-                className={styles.input}
+              <Input
                 value={editMaterial}
                 onChange={(e) => setEditMaterial(e.target.value)}
               />
-            </label>
-          </div>
+            </FieldLabel>
+          </FieldGroup>
 
-          <div className={styles.fieldGroup}>
-            <label className={styles.label}>
+          <FieldGroup>
+            <FieldLabel>
               Frequência (horas)
-              <input
-                className={styles.input}
+              <Input
                 type="number"
                 value={editFrequency}
                 onChange={(e) => setEditFrequency(Number(e.target.value))}
                 min={0.5}
                 step={0.5}
               />
-            </label>
-          </div>
+            </FieldLabel>
+          </FieldGroup>
 
-          <div className={styles.fieldGroup}>
-            <label className={styles.label}>
+          <FieldGroup>
+            <FieldLabel>
               Turno
-              <select
-                className={styles.input}
+              <Select
                 value={editShift}
                 onChange={(e) => setEditShift(e.target.value)}
               >
@@ -195,25 +514,23 @@ function MachineCard({
                 <option value="B">B</option>
                 <option value="C">C</option>
                 <option value="D">D</option>
-              </select>
-            </label>
-          </div>
+              </Select>
+            </FieldLabel>
+          </FieldGroup>
 
-          <div className={styles.fieldGroup}>
-            <label className={styles.label}>
+          <FieldGroup>
+            <FieldLabel>
               Primeiro teste
-              <input
+              <Input
                 type="time"
-                className={styles.input}
                 value={editFirstTest}
                 onChange={(e) => setEditFirstTest(e.target.value)}
               />
-            </label>
-          </div>
+            </FieldLabel>
+          </FieldGroup>
 
-          <div className={styles.actionsRow}>
-            <button
-              className={styles.primaryButton}
+          <ActionsRow>
+            <Button
               onClick={() => {
                 onUpdate(machine.id, {
                   code: editCode,
@@ -226,54 +543,44 @@ function MachineCard({
               }}
             >
               Salvar
-            </button>
+            </Button>
 
-            <button
-              className={styles.secondaryButton}
-              onClick={() => setIsEditing(false)}
-            >
+            <SecondaryButton onClick={() => setIsEditing(false)}>
               Cancelar
-            </button>
-          </div>
-        </div>
+            </SecondaryButton>
+          </ActionsRow>
+        </EditSection>
       ) : (
-        <div className={styles.infoSection}>
-          <p className={styles.infoText}>
+        <InfoSection>
+          <InfoText>
             <strong>Material:</strong> {machine.material}
-          </p>
-          <p className={styles.infoText}>
+          </InfoText>
+          <InfoText>
             <strong>Frequência:</strong> {machine.frequency}h
-          </p>
-          <p className={styles.infoText}>
+          </InfoText>
+          <InfoText>
             <strong>Primeiro teste:</strong> {machine.firstTest}
-          </p>
+          </InfoText>
 
-          <button className={styles.secondaryButton} onClick={startEdit}>
-            Editar
-          </button>
+          <SecondaryButton onClick={startEdit}>Editar</SecondaryButton>
 
-          <button
-            className={styles.deleteButton}
-            onClick={() => onDelete(machine.id)}
-          >
+          <DeleteButton onClick={() => onDelete(machine.id)}>
             Excluir
-          </button>
-        </div>
+          </DeleteButton>
+        </InfoSection>
       )}
 
-      <div className={styles.blocksSection}>
+      <BlocksSection>
         {machine.blocks?.map((block, index) => {
           const blockIsRunning = block.endTime === null;
 
           return (
-            <div key={index} className={styles.block}>
+            <BlockContainer key={index}>
               {index !== 0 && (
-                <strong className={styles.blockTitle}>
-                  Retorno {block.startTime}
-                </strong>
+                <BlockTitle>Retorno {block.startTime}</BlockTitle>
               )}
 
-              <ul className={styles.testList}>
+              <TestList>
                 {block.tests?.map((test, i) => {
                   const testMinutes = toShiftMinutes(test.time, machine.shift);
 
@@ -295,27 +602,19 @@ function MachineCard({
                     isPast &&
                     !test.done;
 
-                  let testClass = styles.testItem;
-
-                  if (test.done) {
-                    testClass = `${styles.testItem} ${styles.testDone}`;
-                  } else if (isLate) {
-                    testClass = `${styles.testItem} ${styles.testLate}`;
-                  } else if (isNext) {
-                    testClass = `${styles.testItem} ${styles.testNext}`;
-                  }
+                  const variant = test.done
+                    ? 'done'
+                    : isLate
+                      ? 'late'
+                      : isNext
+                        ? 'next'
+                        : 'default';
 
                   return (
-                    <li key={i} className={testClass}>
-                      <span
-                        className={`${styles.testTime} ${
-                          test.done ? styles.timeDone : ''
-                        }`}
-                      >
-                        {test.time}
-                      </span>
+                    <TestItem key={i} $variant={variant}>
+                      <TestTime $done={test.done}>{test.time}</TestTime>
 
-                      <span className={styles.testMeta}>
+                      <TestMeta>
                         {test.done
                           ? '✓'
                           : isLate
@@ -325,61 +624,52 @@ function MachineCard({
                               : isNext
                                 ? 'Próximo'
                                 : ''}
-                      </span>
-                    </li>
+                      </TestMeta>
+                    </TestItem>
                   );
                 })}
-              </ul>
+              </TestList>
 
-              {block.endTime && (
-                <p className={styles.stopText}>Parou às {block.endTime}</p>
-              )}
-            </div>
+              {block.endTime && <StopText>Parou às {block.endTime}</StopText>}
+            </BlockContainer>
           );
         })}
-      </div>
+      </BlocksSection>
 
       {machine.stops?.length > 0 && (
-        <div className={styles.historySection}>
-          <strong className={styles.historyTitle}>Histórico de Paradas</strong>
-          <ul className={styles.historyList}>
+        <HistorySection>
+          <HistoryTitle>Histórico de Paradas</HistoryTitle>
+          <HistoryList>
             {machine.stops.map((stop, idx) => (
-              <li key={idx} className={styles.historyItem}>
+              <HistoryItem key={idx}>
                 Parou às {stop.stopTime} - Motivo: {stop.reason}
-              </li>
+              </HistoryItem>
             ))}
-          </ul>
-        </div>
+          </HistoryList>
+        </HistorySection>
       )}
 
-      <div className={styles.actionsRow}>
-        <button
-          className={styles.dangerButton}
-          disabled={!isRunning}
-          onClick={() => onStop(machine.id)}
-        >
+      <ActionsRow>
+        <DangerButton disabled={!isRunning} onClick={() => onStop(machine.id)}>
           Parar Máquina
-        </button>
+        </DangerButton>
 
-        <button
-          className={styles.secondaryButton}
+        <SecondaryButton
           disabled={isRunning}
           onClick={() => onResume(machine.id)}
         >
           Retomar Máquina
-        </button>
+        </SecondaryButton>
 
-        <button
-          className={`${styles.primaryButton} ${
-            hasLateTest ? styles.attentionButton : ''
-          }`}
+        <PrimaryActionButton
+          $attention={hasLateTest}
           disabled={!canExecuteTest}
           onClick={() => onCompleteNext(machine.id)}
         >
           Concluir próximo teste {hasLateTest ? '⚠' : ''}
-        </button>
-      </div>
-    </div>
+        </PrimaryActionButton>
+      </ActionsRow>
+    </CardContainer>
   );
 }
 

@@ -1,3 +1,5 @@
+import styled from 'styled-components';
+
 import MachineForm from '../../features/machines/components/MachineForm';
 import MachineCard from '../../features/machines/components/MachineCard';
 import Filters from '../../features/machines/components/Filters';
@@ -6,6 +8,32 @@ import Dashboard from '../../features/machines/components/Dashboard';
 import ModalConfirm from '../../components/ModalConfirm';
 import ModalStopMachine from '../../components/ModalStopMachine';
 import ModalResumeMachine from '../../components/ModalResumeMachine';
+
+const SectionBar = styled.div`
+  margin-bottom: 28px;
+`;
+
+const ResetButton = styled.button`
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  background: #e8f3f2;
+  color: #1b6f6a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #d6ebe9;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
 
 function Home({
   filteredMachines,
@@ -82,11 +110,11 @@ function Home({
         />
       </div>
 
-      <div className="sectionBar">
-        <button className="resetButton" onClick={() => setNewShiftModal(true)}>
+      <SectionBar>
+        <ResetButton onClick={() => setNewShiftModal(true)}>
           Iniciar novo turno
-        </button>
-      </div>
+        </ResetButton>
+      </SectionBar>
 
       <div className="formSection">
         <MachineForm
