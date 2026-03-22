@@ -15,11 +15,13 @@ const CardContainer = styled.div`
   border-left: 6px solid #1b6f6a;
   border-radius: 14px;
   padding: 18px;
-  margin-bottom: 20px;
   box-shadow: 0 6px 18px rgba(27, 111, 106, 0.08);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
+  min-width: 0;
+  width: 45%;
+  box-sizing: border-box;
 
   &:hover {
     transform: translateY(-3px);
@@ -133,22 +135,24 @@ const FieldLabel = styled.label`
 
 const ActionsRow = styled.div`
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 12px;
+  align-items: stretch;
 `;
 
 const SecondaryButton = styled.button`
+  flex: 1;
+  height: 36px;
   border: none;
   background: #e8f3f2;
   color: #1b6f6a;
-  padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  transition:
-    background 0.2s ease,
-    opacity 0.2s ease;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     background: #d9ecea;
@@ -161,10 +165,11 @@ const SecondaryButton = styled.button`
 `;
 
 const DeleteButton = styled.button`
+  width: 120px;
+  height: 36px;
   border: none;
   background: #fdecec;
   color: #c0392b;
-  padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
@@ -182,17 +187,38 @@ const DeleteButton = styled.button`
   }
 `;
 
-const DangerButton = styled.button`
+const EditButton = styled.button`
+  width: 120px;
+  height: 36px;
   border: none;
-  background: #c0392b;
-  color: #ffffff;
-  padding: 10px 16px;
-  border-radius: 10px;
+  background: #e8f3f2;
+  color: #1b6f6a;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition:
     background 0.2s ease,
     opacity 0.2s ease;
+
+  &:hover {
+    background: #d9ecea;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const DangerButton = styled.button`
+  flex: 1;
+  height: 40px;
+  border: none;
+  background: #c0392b;
+  color: #ffffff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
 
   &:hover {
     background: #a93226;
@@ -548,9 +574,7 @@ function MachineCard({
               Salvar
             </Button>
 
-            <SecondaryButton onClick={() => setIsEditing(false)}>
-              Cancelar
-            </SecondaryButton>
+            <Button onClick={() => setIsEditing(false)}>Cancelar</Button>
           </ActionsRow>
         </EditSection>
       ) : (
@@ -565,11 +589,13 @@ function MachineCard({
             <strong>Primeiro teste:</strong> {machine.firstTest}
           </InfoText>
 
-          <SecondaryButton onClick={startEdit}>Editar</SecondaryButton>
+          <ActionsRow>
+            <EditButton onClick={startEdit}>Editar</EditButton>
 
-          <DeleteButton onClick={() => onDelete(machine.id)}>
-            Excluir
-          </DeleteButton>
+            <DeleteButton onClick={() => onDelete(machine.id)}>
+              Excluir
+            </DeleteButton>
+          </ActionsRow>
         </InfoSection>
       )}
 
