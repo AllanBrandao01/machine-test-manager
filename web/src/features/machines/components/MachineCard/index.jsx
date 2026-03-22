@@ -20,7 +20,7 @@ const CardContainer = styled.div`
     transform 0.2s ease,
     box-shadow 0.2s ease;
   min-width: 0;
-  width: 45%;
+  width: 85%;
   box-sizing: border-box;
 
   &:hover {
