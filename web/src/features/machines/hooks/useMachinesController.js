@@ -3,7 +3,7 @@ import { formatTimeInput } from '../../../utils/time';
 import { filterMachines } from '../utils/filters';
 import { getDashboardStats } from '../utils/dashboard';
 import machinesReducer from '../reducer/machinesReducer';
-import { fetchMachines } from '../../../services/api/machines';
+import { fetchMachines } from '../../../services/machinesDataService';
 import {
   insertMachine,
   insertStop,
