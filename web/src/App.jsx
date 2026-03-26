@@ -22,7 +22,7 @@ function App() {
     setShift,
     errors,
     feedback,
-    setFeedback,
+    clearFeedback,
     handleAddMachine,
     handleCompleteNextTest,
     handleUpdateMachine,
@@ -63,7 +63,7 @@ function App() {
       setShift={setShift}
       errors={errors}
       feedback={feedback}
-      setFeedback={setFeedback}
+      clearFeedback={clearFeedback}
       handleAddMachine={handleAddMachine}
       handleCompleteNextTest={handleCompleteNextTest}
       handleUpdateMachine={handleUpdateMachine}

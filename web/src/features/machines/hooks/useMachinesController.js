@@ -70,12 +70,16 @@ export function useMachinesController() {
   });
   const [newShiftModal, setNewShiftModal] = useState(false);
 
-  function showFeedback(type, message) {
-    setFeedback({ type, message });
-  }
-
   function clearFeedback() {
     setFeedback({ type: '', message: '' });
+  }
+
+  function showFeedback(type, message) {
+    setFeedback({ type, message });
+
+    setTimeout(() => {
+      setFeedback({ type: '', message: '' });
+    }, 3000);
   }
 
   function resetMachineForm() {

@@ -55,7 +55,7 @@ function Home({
   setShift,
   errors,
   feedback,
-  setFeedback,
+  clearFeedback,
   handleAddMachine,
   handleCompleteNextTest,
   handleUpdateMachine,
@@ -89,12 +89,12 @@ function Home({
           </div>
         </div>
 
-        {feedback && (
+        {feedback.message && (
           <div className={`feedbackMessage feedback-${feedback.type}`}>
             <span>{feedback.message}</span>
             <button
               className="feedbackClose"
-              onClick={() => setFeedback(null)}
+              onClick={clearFeedback}
               type="button"
             >
               ×
