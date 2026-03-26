@@ -1,6 +1,6 @@
 import styled, { css } from 'styled-components';
 
-const CardContainer = styled.div`
+export const CardContainer = styled.div`
   background: #ffffff;
   border: 1px solid #d7e6e4;
   border-left: 6px solid #1b6f6a;
@@ -11,7 +11,7 @@ const CardContainer = styled.div`
     transform 0.2s ease,
     box-shadow 0.2s ease;
   min-width: 0;
-  width: 85%;
+  width: 100%;
   box-sizing: border-box;
 
   &:hover {
@@ -40,7 +40,7 @@ const CardContainer = styled.div`
     `}
 `;
 
-const Header = styled.div`
+export const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -48,19 +48,19 @@ const Header = styled.div`
   margin-bottom: 16px;
 `;
 
-const Title = styled.h3`
+export const Title = styled.h3`
   margin: 0 0 4px;
   color: #1b6f6a;
   font-size: 1.25rem;
 `;
 
-const Subtitle = styled.p`
+export const Subtitle = styled.p`
   margin: 0;
   color: #5f6b6a;
   font-size: 0.95rem;
 `;
 
-const StatusBadge = styled.span`
+export const StatusBadge = styled.span`
   padding: 8px 12px;
   border-radius: 999px;
   font-weight: 700;
@@ -89,33 +89,33 @@ const StatusBadge = styled.span`
             `}
 `;
 
-const InfoSection = styled.div`
+export const InfoSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 16px;
 `;
 
-const InfoText = styled.p`
+export const InfoText = styled.p`
   margin: 0;
   color: #243534;
   font-size: 0.95rem;
 `;
 
-const EditSection = styled.div`
+export const EditSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 14px;
   margin-bottom: 16px;
 `;
 
-const FieldGroup = styled.div`
+export const FieldGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
 `;
 
-const FieldLabel = styled.label`
+export const FieldLabel = styled.label`
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -124,14 +124,14 @@ const FieldLabel = styled.label`
   font-size: 0.95rem;
 `;
 
-const ActionsRow = styled.div`
+export const ActionsRow = styled.div`
   display: flex;
   gap: 10px;
   margin-top: 12px;
   align-items: stretch;
 `;
 
-const SecondaryButton = styled.button`
+export const SecondaryButton = styled.button`
   flex: 1;
   height: 36px;
   border: none;
@@ -155,7 +155,7 @@ const SecondaryButton = styled.button`
   }
 `;
 
-const DeleteButton = styled.button`
+export const DeleteButton = styled.button`
   width: 120px;
   height: 36px;
   border: none;
@@ -178,7 +178,7 @@ const DeleteButton = styled.button`
   }
 `;
 
-const EditButton = styled.button`
+export const EditButton = styled.button`
   width: 120px;
   height: 36px;
   border: none;
@@ -201,7 +201,7 @@ const EditButton = styled.button`
   }
 `;
 
-const DangerButton = styled.button`
+export const DangerButton = styled.button`
   flex: 1;
   height: 40px;
   border: none;
@@ -221,7 +221,7 @@ const DangerButton = styled.button`
   }
 `;
 
-const PrimaryActionButton = styled.button`
+export const PrimaryActionButton = styled.button`
   border: none;
   background: #1b6f6a;
   color: #ffffff;
@@ -257,28 +257,28 @@ const PrimaryActionButton = styled.button`
     `}
 `;
 
-const BlocksSection = styled.div`
+export const BlocksSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 14px;
   margin-top: 12px;
 `;
 
-const BlockContainer = styled.div`
+export const BlockContainer = styled.div`
   background: #f8fbfb;
   border: 1px solid #d7e6e4;
   border-radius: 12px;
   padding: 14px;
 `;
 
-const BlockTitle = styled.strong`
+export const BlockTitle = styled.strong`
   display: block;
   margin-bottom: 10px;
   color: #1b6f6a;
   font-size: 0.95rem;
 `;
 
-const TestList = styled.ul`
+export const TestList = styled.ul`
   list-style: none;
   margin: 0;
   padding: 0;
@@ -287,7 +287,7 @@ const TestList = styled.ul`
   gap: 8px;
 `;
 
-const TestItem = styled.li`
+export const TestItem = styled.li`
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -319,7 +319,7 @@ const TestItem = styled.li`
     `}
 `;
 
-const TestTime = styled.span`
+export const TestTime = styled.span`
   font-weight: 700;
   color: #244240;
 
@@ -330,33 +330,33 @@ const TestTime = styled.span`
     `}
 `;
 
-const TestMeta = styled.span`
+export const TestMeta = styled.span`
   font-size: 0.85rem;
   font-weight: 600;
   color: #5f6b6a;
 `;
 
-const StopText = styled.p`
+export const StopText = styled.p`
   margin: 12px 0 0;
   color: #8a3b32;
   font-size: 0.9rem;
   font-weight: 600;
 `;
 
-const HistorySection = styled.div`
+export const HistorySection = styled.div`
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid #dfe9e7;
 `;
 
-const HistoryTitle = styled.strong`
+export const HistoryTitle = styled.strong`
   display: block;
   margin-bottom: 10px;
   color: #1b6f6a;
   font-size: 0.95rem;
 `;
 
-const HistoryList = styled.ul`
+export const HistoryList = styled.ul`
   margin: 0;
   padding-left: 18px;
   display: flex;
@@ -364,7 +364,7 @@ const HistoryList = styled.ul`
   gap: 6px;
 `;
 
-const HistoryItem = styled.li`
+export const HistoryItem = styled.li`
   color: #465857;
   font-size: 0.92rem;
 `;
