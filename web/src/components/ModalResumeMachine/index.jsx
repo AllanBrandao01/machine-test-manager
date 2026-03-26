@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import FormField from '../FormField';
 import { Input } from '../ui/Input';
-import { Title, Actions, CancelButton, ConfirmButton } from './styles';
+import {
+  Overlay,
+  ModalContainer,
+  Title,
+  Actions,
+  CancelButton,
+  ConfirmButton,
+} from './styles';
 
 function ModalResumeMachine({ isOpen, onClose, onConfirm }) {
   const [time, setTime] = useState('');
