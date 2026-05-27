@@ -68,9 +68,9 @@ body {
 
 .machinesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 22px;
-  margin-top: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 420px));
+  gap: 16px;
+  align-items: start;
 }
 
 .feedbackMessage {

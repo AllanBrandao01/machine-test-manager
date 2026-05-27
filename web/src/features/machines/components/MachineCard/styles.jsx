@@ -10,9 +10,15 @@ export const CardContainer = styled.div`
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
+
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 520px;
 
   &:hover {
     transform: translateY(-3px);
@@ -127,10 +133,9 @@ export const FieldLabel = styled.label`
 export const ActionsRow = styled.div`
   display: flex;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: auto;
   align-items: stretch;
 `;
-
 export const SecondaryButton = styled.button`
   flex: 1;
   height: 36px;

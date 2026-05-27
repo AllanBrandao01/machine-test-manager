@@ -38,45 +38,14 @@ import {
   HistoryTitle,
 } from './styles';
 
-function toMinutes(time) {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function toAbsoluteMinutes(time, shift) {
-  let minutes = toMinutes(time);
-
-  const isNightShift = shift === 'B' || shift === 'D';
-
-  if (isNightShift && minutes <= 360) {
-    minutes += 1440;
-  }
-
-  return minutes;
-}
-
-function getNowAbsoluteMinutes(shift) {
-  const now = new Date();
-  let minutes = now.getHours() * 60 + now.getMinutes();
-
-  const isNightShift = shift === 'B' || shift === 'D';
-
-  if (isNightShift && minutes <= 360) {
-    minutes += 1440;
-  }
-
-  return minutes;
-}
-
 function getMachineStatus(machine) {
   if (machine.isStopped) return 'stopped';
 
   const nextTest = machine.nextTestTime;
   if (!nextTest) return 'ok';
 
-  const now = getNowAbsoluteMinutes(machine.shift);
-  const expected = toAbsoluteMinutes(nextTest, machine.shift);
-
+  const now = getNowShiftMinutes(machine.shift);
+  const expected = toShiftMinutes(nextTest, machine.shift);
   const diff = now - expected;
 
   if (diff >= 30) return 'late';
@@ -132,8 +101,8 @@ function MachineCard({
     if (!nextTest) return false;
     if (machine.isStopped) return false;
 
-    const now = getNowAbsoluteMinutes(machine.shift);
-    const expected = toAbsoluteMinutes(nextTest, machine.shift);
+    const now = getNowShiftMinutes(machine.shift);
+    const expected = toShiftMinutes(nextTest, machine.shift);
 
     return now >= expected;
   })();

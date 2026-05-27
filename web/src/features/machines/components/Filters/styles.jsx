@@ -1,13 +1,13 @@
 import styled from 'styled-components';
 
-const FiltersContainer = styled.div`
+export const FiltersContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
 `;
 
-const FilterButton = styled.button`
+export const FilterButton = styled.button`
   border: 1px solid #d7e6e4;
   background: #ffffff;
   color: #244240;

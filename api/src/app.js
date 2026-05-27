@@ -5,7 +5,16 @@ import shiftSessionRoutes from './routes/shiftSessionRoutes.js';
 
 const app = express();
 
-app.use(cors());
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+
+app.use(
+  cors({
+    origin: allowedOrigin || '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }),
+);
+
 app.use(express.json());
 
 app.get('/health', (req, res) => {

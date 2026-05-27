@@ -37,19 +37,19 @@ function isValidTime(value) {
 
 function assertValidTime(value, fieldLabel) {
   if (!isValidTime(value)) {
-    throw new Error(`${fieldLabel} inválido.`);
+    throw new BadRequestError(`${fieldLabel} inválido.`);
   }
 
   const [hours, minutes] = value.split(':').map(Number);
 
   if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-    throw new Error(`${fieldLabel} inválido.`);
+    throw new BadRequestError(`${fieldLabel} inválido.`);
   }
 }
 
 function assertValidShift(shift) {
   if (!['A', 'B', 'C', 'D'].includes(shift)) {
-    throw new Error('Turno inválido.');
+    throw new BadRequestError('Turno inválido.');
   }
 }
 
@@ -57,7 +57,7 @@ function assertValidFrequency(frequency) {
   const safeFrequency = Number(frequency);
 
   if (!Number.isFinite(safeFrequency) || safeFrequency < 0.5) {
-    throw new Error('A frequência mínima é 0.5 (30 minutos).');
+    throw new BadRequestError('A frequência mínima é 0.5 (30 minutos).');
   }
 
   return safeFrequency;
@@ -65,22 +65,23 @@ function assertValidFrequency(frequency) {
 
 function assertValidMachinePayload(data) {
   if (!data.code?.trim()) {
-    throw new Error('Código da máquina é obrigatório.');
+    throw new BadRequestError('Código da máquina é obrigatório.');
   }
 
   if (!data.material?.trim()) {
-    throw new Error('Material é obrigatório.');
+    throw new BadRequestError('Material é obrigatório.');
   }
 
   assertValidShift(data.shift);
   assertValidTime(data.firstTest, 'Horário do primeiro teste');
-  return assertValidFrequency(data.frequency);
 
   if (!isTimeWithinShift(data.firstTest, data.shift)) {
-    throw new Error(
+    throw new BadRequestError(
       'Horário do primeiro teste não pertence ao turno selecionado.',
     );
   }
+
+  return assertValidFrequency(data.frequency);
 }
 
 function toAbsoluteMinutes(time, shift) {
@@ -119,7 +120,7 @@ export async function deleteMachine(id) {
   });
 
   if (!machine) {
-    throw new Error('Máquina não encontrada.');
+    throw new NotFoundError('Máquina não encontrada.');
   }
 
   await prisma.machine.delete({
@@ -179,7 +180,7 @@ export async function createMachine(data) {
   });
 
   if (!activeShiftSession) {
-    throw new Error('Nenhum turno ativo encontrado.');
+    throw new NotFoundError('Nenhum turno ativo encontrado.');
   }
 
   const safeFrequency = assertValidMachinePayload(data);
@@ -193,7 +194,7 @@ export async function createMachine(data) {
   }
 
   if (data.shift !== activeShiftSession.shift) {
-    throw new Error('O turno da máquina deve ser igual ao turno ativo.');
+    throw new BadRequestError('O turno da máquina deve ser igual ao turno ativo.');
   }
 
   const existingMachine = await prisma.machine.findFirst({
@@ -204,7 +205,7 @@ export async function createMachine(data) {
   });
 
   if (existingMachine) {
-    throw new Error('Já existe uma máquina com esse código neste turno.');
+    throw new BadRequestError('Já existe uma máquina com esse código neste turno.');
   }
 
   const machine = await prisma.machine.create({
@@ -238,7 +239,7 @@ export async function stopMachine(machineId, data) {
   const machine = await findMachineWithRelations(machineId);
 
   if (!machine) {
-    throw new Error('Máquina não encontrada.');
+    throw new NotFoundError('Máquina não encontrada.');
   }
 
   assertValidTime(data.stopTime, 'Horário de parada');
@@ -258,7 +259,7 @@ export async function stopMachine(machineId, data) {
   });
 
   if (openStop) {
-    throw new Error('Já existe uma parada em aberto para esta máquina.');
+    throw new BadRequestError('Já existe uma parada em aberto para esta máquina.');
   }
 
   const lastTest = machine.tests[machine.tests.length - 1];
@@ -268,7 +269,7 @@ export async function stopMachine(machineId, data) {
     toAbsoluteMinutes(data.stopTime, machine.shift) <
       toAbsoluteMinutes(lastTest.testTime, machine.shift)
   ) {
-    throw new Error(
+    throw new BadRequestError(
       'Horário de parada não pode ser menor que o último teste realizado.',
     );
   }
@@ -290,7 +291,7 @@ export async function resumeMachine(machineId, data) {
   const machine = await findMachineWithRelations(machineId);
 
   if (!machine) {
-    throw new Error('Máquina não encontrada.');
+    throw new NotFoundError('Máquina não encontrada.');
   }
 
   assertValidTime(data.resumeTime, 'Horário de retorno');
@@ -306,14 +307,14 @@ export async function resumeMachine(machineId, data) {
   });
 
   if (!lastOpenStop) {
-    throw new Error('Nenhuma parada em aberto encontrada para esta máquina.');
+    throw new NotFoundError('Nenhuma parada em aberto encontrada para esta máquina.');
   }
 
   if (
     toAbsoluteMinutes(data.resumeTime, machine.shift) <=
     toAbsoluteMinutes(lastOpenStop.stopTime, machine.shift)
   ) {
-    throw new Error(
+    throw new BadRequestError(
       'Horário de retorno deve ser maior que o horário de parada.',
     );
   }
@@ -336,7 +337,7 @@ export async function registerMachineTest(machineId, data) {
   const machine = await findMachineWithRelations(machineId);
 
   if (!machine) {
-    throw new Error('Máquina não encontrada.');
+    throw new NotFoundError('Máquina não encontrada.');
   }
 
   assertValidTime(data.testTime, 'Horário de teste');
@@ -352,7 +353,7 @@ export async function registerMachineTest(machineId, data) {
   });
 
   if (openStop) {
-    throw new Error('Não é possível registrar teste com a máquina parada.');
+    throw new BadRequestError('Não é possível registrar teste com a máquina parada.');
   }
 
   const hydratedMachine = buildMachineTimeline(machine);
@@ -362,13 +363,13 @@ export async function registerMachineTest(machineId, data) {
     .filter((t) => !t.done);
 
   if (pendingTests.length === 0) {
-    throw new Error('Nenhum teste pendente.');
+    throw new BadRequestError('Nenhum teste pendente.');
   }
 
   const nextExpectedTest = pendingTests[0];
 
   if (data.testTime !== nextExpectedTest.time) {
-    throw new Error(
+    throw new BadRequestError(
       `Ainda não é o horário deste teste. Próximo teste às ${nextExpectedTest.time}.`,
     );
   }
@@ -380,7 +381,7 @@ export async function registerMachineTest(machineId, data) {
   );
 
   if (nowAbsoluteMinutes < expectedAbsoluteMinutes) {
-    throw new Error(
+    throw new BadRequestError(
       `Ainda não é o horário deste teste. Próximo teste às ${nextExpectedTest.time}.`,
     );
   }
@@ -392,7 +393,7 @@ export async function registerMachineTest(machineId, data) {
     toAbsoluteMinutes(data.testTime, machine.shift) <=
       toAbsoluteMinutes(lastTest.testTime, machine.shift)
   ) {
-    throw new Error(
+    throw new BadRequestError(
       'Horário de teste deve ser maior que o último teste realizado.',
     );
   }
@@ -402,7 +403,7 @@ export async function registerMachineTest(machineId, data) {
   );
 
   if (duplicatedTest) {
-    throw new Error('Já existe um teste registrado neste horário.');
+    throw new BadRequestError('Já existe um teste registrado neste horário.');
   }
 
   await prisma.test.create({
@@ -421,7 +422,7 @@ export async function updateMachine(id, data) {
   const machine = await findMachineWithRelations(id);
 
   if (!machine) {
-    throw new Error('Máquina não encontrada.');
+    throw new NotFoundError('Máquina não encontrada.');
   }
 
   const openStop = await prisma.stop.findFirst({
@@ -453,24 +454,24 @@ export async function updateMachine(id, data) {
   const nextShift = data.shift !== undefined ? data.shift : machine.shift;
 
   if (!nextCode) {
-    throw new Error('Código da máquina é obrigatório.');
+    throw new BadRequestError('Código da máquina é obrigatório.');
   }
 
   if (!nextMaterial) {
-    throw new Error('Material é obrigatório.');
+    throw new BadRequestError('Material é obrigatório.');
   }
 
   assertValidShift(nextShift);
   assertValidTime(nextFirstTest, 'Horário do primeiro teste');
 
   if (!isTimeWithinShift(nextFirstTest, nextShift)) {
-    throw new Error(
+    throw new BadRequestError(
       'Horário do primeiro teste não pertence ao turno selecionado.',
     );
   }
 
   if (isStopped && nextFrequency !== machine.frequency) {
-    throw new Error(
+    throw new BadRequestError(
       'Não é permitido alterar a frequência com a máquina parada. Retome a máquina para aplicar a nova frequência.',
     );
   }
@@ -486,7 +487,7 @@ export async function updateMachine(id, data) {
   });
 
   if (duplicatedMachine) {
-    throw new Error('Já existe uma máquina com esse código neste turno.');
+    throw new BadRequestError('Já existe uma máquina com esse código neste turno.');
   }
 
   const updatedMachine = await prisma.machine.update({

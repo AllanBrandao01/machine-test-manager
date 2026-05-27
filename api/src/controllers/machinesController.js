@@ -8,31 +8,6 @@ import {
   deleteMachine,
 } from '../services/machinesService.js';
 
-function getStatusCode(error) {
-  const message = error.message || '';
-
-  if (
-    message.includes('não encontrada') ||
-    message.includes('Nenhuma parada em aberto')
-  ) {
-    return 404;
-  }
-
-  if (
-    message.includes('inválido') ||
-    message.includes('obrigatório') ||
-    message.includes('Já existe') ||
-    message.includes('não é permitido') ||
-    message.includes('não pode') ||
-    message.includes('deve ser igual') ||
-    message.includes('Não é possível registrar teste com a máquina parada')
-  ) {
-    return 400;
-  }
-
-  return 500;
-}
-
 function handleControllerError(error, res) {
   console.error(error);
 

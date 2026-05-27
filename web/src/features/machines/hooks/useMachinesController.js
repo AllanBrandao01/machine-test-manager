@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { formatTimeInput } from '../../../utils/time';
 import { filterMachines } from '../utils/filters';
 import { getDashboardStats } from '../utils/dashboard';
@@ -37,10 +37,10 @@ function isTimeWithinShift(time, shift) {
   const isDayShift = shift === 'A' || shift === 'C';
 
   if (isDayShift) {
-    return totalMinutes >= 360 && totalMinutes <= 1079; // 06:00 - 17:59
+    return totalMinutes >= 360 && totalMinutes <= 1079;
   }
 
-  return totalMinutes >= 1080 || totalMinutes <= 359; // 18:00 - 05:59
+  return totalMinutes >= 1080 || totalMinutes <= 359;
 }
 
 export function useMachinesController() {
@@ -69,16 +69,24 @@ export function useMachinesController() {
     machineId: null,
   });
   const [newShiftModal, setNewShiftModal] = useState(false);
+  const feedbackTimerRef = useRef(null);
 
   function clearFeedback() {
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = null;
+    }
     setFeedback({ type: '', message: '' });
   }
 
   function showFeedback(type, message) {
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current);
+    }
     setFeedback({ type, message });
-
-    setTimeout(() => {
+    feedbackTimerRef.current = setTimeout(() => {
       setFeedback({ type: '', message: '' });
+      feedbackTimerRef.current = null;
     }, 3000);
   }
 
@@ -138,7 +146,7 @@ export function useMachinesController() {
         return;
       }
 
-      await startNewShiftFlow(shift);
+      await startNewShiftSession(shift);
 
       dispatch({ type: 'SET_MACHINES', payload: [] });
       resetMachineForm();
@@ -459,14 +467,6 @@ export function useMachinesController() {
     } catch (error) {
       showFeedback('error', error.message || 'Erro ao atualizar máquina.');
     }
-  }
-
-  async function startNewShiftFlow(currentShiftValue) {
-    if (!currentShiftValue) {
-      throw new Error('Turma inválida para iniciar turno.');
-    }
-
-    return startNewShiftSession(currentShiftValue);
   }
 
   const { runningMachines, stoppedMachines, lateTests, completedTests } =
