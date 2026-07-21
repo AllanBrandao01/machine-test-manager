@@ -130,6 +130,11 @@ export const ActionsRow = styled.div`
   margin-top: auto;
   align-items: stretch;
 `;
+
+export const OperationsRow = styled(ActionsRow)`
+  padding-top: 16px;
+`;
+
 export const SecondaryButton = styled.button`
   flex: 1;
   height: 40px;

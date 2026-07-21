@@ -17,6 +17,7 @@ import {
   FieldGroup,
   FieldLabel,
   ActionsRow,
+  OperationsRow,
   SecondaryButton,
   DeleteButton,
   EditButton,
@@ -295,7 +296,7 @@ function MachineCard({
         </HistorySection>
       )}
 
-      <ActionsRow>
+      <OperationsRow>
         {isRunning ? (
           <DangerButton disabled={isSubmitting} onClick={() => onStop(machine.id)}>
             Parar Máquina
@@ -318,7 +319,7 @@ function MachineCard({
             ? 'Concluindo...'
             : `Concluir teste ${hasLateTest ? '⚠' : ''}`}
         </PrimaryActionButton>
-      </ActionsRow>
+      </OperationsRow>
     </CardContainer>
   );
 }
