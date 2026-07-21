@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  background: #f5f8f7;
+  background: #e9f0ef;
   font-family: system-ui, sans-serif;
   color: #243534;
 }
@@ -16,7 +16,7 @@ body {
 }
 
 .appHeader {
-  background: #e8f3f2;
+  background: #ddeae6;
   padding: 28px;
   border-radius: 12px;
   margin-bottom: 20px;
