@@ -11,7 +11,13 @@ import {
   WarningBox,
 } from './styles';
 
-function ModalStartShift({ isOpen, onClose, onConfirm, runningMachinesCount = 0 }) {
+function ModalStartShift({
+  isOpen,
+  onClose,
+  onConfirm,
+  runningMachinesCount = 0,
+  isSubmitting = false,
+}) {
   const [shift, setShift] = useState('A');
   const [step, setStep] = useState('select');
 
@@ -51,12 +57,18 @@ function ModalStartShift({ isOpen, onClose, onConfirm, runningMachinesCount = 0 
             </WarningBox>
 
             <Actions>
-              <CancelButton onClick={() => setStep('select')}>
+              <CancelButton
+                onClick={() => setStep('select')}
+                disabled={isSubmitting}
+              >
                 Voltar
               </CancelButton>
 
-              <ConfirmButton onClick={handleConfirmClick}>
-                Sim, iniciar mesmo assim
+              <ConfirmButton
+                onClick={handleConfirmClick}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Iniciando...' : 'Sim, iniciar mesmo assim'}
               </ConfirmButton>
             </Actions>
           </>
@@ -67,6 +79,7 @@ function ModalStartShift({ isOpen, onClose, onConfirm, runningMachinesCount = 0 
                 id="new-shift"
                 value={shift}
                 onChange={(e) => setShift(e.target.value)}
+                disabled={isSubmitting}
               >
                 <option value="A">Turno A</option>
                 <option value="B">Turno B</option>
@@ -76,10 +89,15 @@ function ModalStartShift({ isOpen, onClose, onConfirm, runningMachinesCount = 0 
             </FormField>
 
             <Actions>
-              <CancelButton onClick={handleClose}>Cancelar</CancelButton>
+              <CancelButton onClick={handleClose} disabled={isSubmitting}>
+                Cancelar
+              </CancelButton>
 
-              <ConfirmButton onClick={handleConfirmClick}>
-                Confirmar
+              <ConfirmButton
+                onClick={handleConfirmClick}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Iniciando...' : 'Confirmar'}
               </ConfirmButton>
             </Actions>
           </>

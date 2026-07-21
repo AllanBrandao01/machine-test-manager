@@ -8,7 +8,15 @@ import {
   ConfirmButton,
 } from './styles';
 
-function ModalConfirm({ isOpen, title, message, onConfirm, onCancel }) {
+function ModalConfirm({
+  isOpen,
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  isSubmitting = false,
+  confirmingLabel = 'Confirmando...',
+}) {
   if (!isOpen) return null;
 
   return (
@@ -19,9 +27,13 @@ function ModalConfirm({ isOpen, title, message, onConfirm, onCancel }) {
         <Message>{message}</Message>
 
         <Actions>
-          <CancelButton onClick={onCancel}>Cancelar</CancelButton>
+          <CancelButton onClick={onCancel} disabled={isSubmitting}>
+            Cancelar
+          </CancelButton>
 
-          <ConfirmButton onClick={onConfirm}>Confirmar</ConfirmButton>
+          <ConfirmButton onClick={onConfirm} disabled={isSubmitting}>
+            {isSubmitting ? confirmingLabel : 'Confirmar'}
+          </ConfirmButton>
         </Actions>
       </ModalContainer>
     </Overlay>

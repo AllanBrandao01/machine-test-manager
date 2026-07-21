@@ -37,6 +37,11 @@ export const CancelButton = styled.button`
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 export const ConfirmButton = styled.button`
@@ -46,6 +51,11 @@ export const ConfirmButton = styled.button`
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 export const WarningBox = styled.div`

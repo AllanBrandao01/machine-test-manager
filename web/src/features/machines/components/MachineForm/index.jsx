@@ -25,6 +25,7 @@ function MachineForm({
   errors,
   onCreate,
   onClose,
+  isSubmitting = false,
 }) {
   return (
     <FormCard>
@@ -37,7 +38,12 @@ function MachineForm({
           </Subtitle>
         </div>
 
-        <CloseButton onClick={onClose} type="button" aria-label="Fechar">
+        <CloseButton
+          onClick={onClose}
+          type="button"
+          aria-label="Fechar"
+          disabled={isSubmitting}
+        >
           ×
         </CloseButton>
       </Header>
@@ -104,10 +110,12 @@ function MachineForm({
       </FormGrid>
 
       <Actions>
-        <CancelButton onClick={onClose} type="button">
+        <CancelButton onClick={onClose} type="button" disabled={isSubmitting}>
           Cancelar
         </CancelButton>
-        <Button onClick={onCreate}>Criar máquina</Button>
+        <Button onClick={onCreate} disabled={isSubmitting}>
+          {isSubmitting ? 'Criando...' : 'Criar máquina'}
+        </Button>
       </Actions>
     </FormCard>
   );

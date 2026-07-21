@@ -47,6 +47,7 @@ function Home() {
     createMachineModal,
     setCreateMachineModal,
     closeCreateMachineModal,
+    isSubmitting,
     confirmStopMachine,
     confirmResumeMachine,
     today,
@@ -89,11 +90,17 @@ function Home() {
         </div>
 
         <SectionBar>
-          <PrimaryButton onClick={() => setCreateMachineModal(true)}>
+          <PrimaryButton
+            disabled={isSubmitting}
+            onClick={() => setCreateMachineModal(true)}
+          >
             Nova máquina
           </PrimaryButton>
 
-          <AccentButton onClick={() => setNewShiftModal(true)}>
+          <AccentButton
+            disabled={isSubmitting}
+            onClick={() => setNewShiftModal(true)}
+          >
             Iniciar novo turno
           </AccentButton>
         </SectionBar>
@@ -128,6 +135,7 @@ function Home() {
               onUpdate={handleUpdateMachine}
               onCompleteNext={handleCompleteNextTest}
               onDelete={handleDeleteMachine}
+              isSubmitting={isSubmitting}
             />
           ))}
 
@@ -137,6 +145,8 @@ function Home() {
             message="Deseja realmente excluir esta máquina?"
             onCancel={() => setDeleteModal({ open: false, machineId: null })}
             onConfirm={confirmDeleteMachine}
+            isSubmitting={isSubmitting}
+            confirmingLabel="Excluindo..."
           />
 
           <ModalStopMachine
@@ -166,6 +176,7 @@ function Home() {
             onClose={() => setNewShiftModal(false)}
             onConfirm={handleStartNewShift}
             runningMachinesCount={runningMachines}
+            isSubmitting={isSubmitting}
           />
 
           <ModalCreateMachine
@@ -180,6 +191,7 @@ function Home() {
             firstTest={firstTest}
             setFirstTest={setFirstTest}
             errors={errors}
+            isSubmitting={isSubmitting}
             onCreate={() =>
               handleAddMachine({
                 code,

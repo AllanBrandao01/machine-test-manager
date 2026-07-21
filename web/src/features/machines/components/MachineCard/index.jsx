@@ -60,6 +60,7 @@ function MachineCard({
   onUpdate,
   onCompleteNext,
   onDelete,
+  isSubmitting = false,
 }) {
   const currentBlock = machine.blocks?.[machine.blocks.length - 1];
   const isRunning = currentBlock?.endTime === null;
@@ -171,20 +172,26 @@ function MachineCard({
 
           <ActionsRow>
             <Button
-              onClick={() => {
-                onUpdate(machine.id, {
+              disabled={isSubmitting}
+              onClick={async () => {
+                const success = await onUpdate(machine.id, {
                   code: editCode,
                   material: editMaterial,
                   frequency: editFrequency,
                   firstTest: editFirstTest,
                 });
-                setIsEditing(false);
+
+                if (success) {
+                  setIsEditing(false);
+                }
               }}
             >
-              Salvar
+              {isSubmitting ? 'Salvando...' : 'Salvar'}
             </Button>
 
-            <Button onClick={() => setIsEditing(false)}>Cancelar</Button>
+            <Button disabled={isSubmitting} onClick={() => setIsEditing(false)}>
+              Cancelar
+            </Button>
           </ActionsRow>
         </EditSection>
       ) : (
@@ -200,9 +207,14 @@ function MachineCard({
           </InfoText>
 
           <ActionsRow>
-            <EditButton onClick={startEdit}>Editar</EditButton>
+            <EditButton disabled={isSubmitting} onClick={startEdit}>
+              Editar
+            </EditButton>
 
-            <DeleteButton onClick={() => onDelete(machine.id)}>
+            <DeleteButton
+              disabled={isSubmitting}
+              onClick={() => onDelete(machine.id)}
+            >
               Excluir
             </DeleteButton>
           </ActionsRow>
@@ -289,12 +301,15 @@ function MachineCard({
       )}
 
       <ActionsRow>
-        <DangerButton disabled={!isRunning} onClick={() => onStop(machine.id)}>
+        <DangerButton
+          disabled={!isRunning || isSubmitting}
+          onClick={() => onStop(machine.id)}
+        >
           Parar Máquina
         </DangerButton>
 
         <SecondaryButton
-          disabled={isRunning}
+          disabled={isRunning || isSubmitting}
           onClick={() => onResume(machine.id)}
         >
           Retomar Máquina
@@ -302,10 +317,10 @@ function MachineCard({
 
         <PrimaryActionButton
           $attention={hasLateTest}
-          disabled={!canExecuteTest}
+          disabled={!canExecuteTest || isSubmitting}
           onClick={() => onCompleteNext(machine.id)}
         >
-          Concluir próximo teste {hasLateTest ? '⚠' : ''}
+          {isSubmitting ? 'Concluindo...' : `Concluir próximo teste ${hasLateTest ? '⚠' : ''}`}
         </PrimaryActionButton>
       </ActionsRow>
     </CardContainer>

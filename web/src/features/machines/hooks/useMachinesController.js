@@ -71,6 +71,7 @@ export function useMachinesController() {
   });
   const [newShiftModal, setNewShiftModal] = useState(false);
   const [createMachineModal, setCreateMachineModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const feedbackTimerRef = useRef(null);
 
   function clearFeedback() {
@@ -143,15 +144,17 @@ export function useMachinesController() {
   }
 
   async function handleStartNewShift(selectedShift) {
-    try {
-      if (!selectedShift) {
-        showFeedback(
-          'error',
-          'Selecione o turno antes de iniciar um novo turno.',
-        );
-        return;
-      }
+    if (!selectedShift) {
+      showFeedback(
+        'error',
+        'Selecione o turno antes de iniciar um novo turno.',
+      );
+      return;
+    }
 
+    setIsSubmitting(true);
+
+    try {
       const session = await startNewShiftSession(selectedShift);
 
       dispatch({ type: 'SET_MACHINES', payload: [] });
@@ -162,6 +165,7 @@ export function useMachinesController() {
       console.error(error);
       showFeedback('error', error.message || 'Erro ao iniciar novo turno.');
     } finally {
+      setIsSubmitting(false);
       setNewShiftModal(false);
     }
   }
@@ -199,38 +203,37 @@ export function useMachinesController() {
   }
 
   async function completeNextTestFlow(machineId, testValue) {
+    const machine = machines.find((m) => m.id === machineId);
+
+    if (!machine) {
+      showFeedback('error', 'Máquina não encontrada.');
+      return;
+    }
+
+    const currentBlock = machine.blocks?.[machine.blocks.length - 1];
+
+    if (!currentBlock || currentBlock.endTime !== null) {
+      showFeedback('warning', 'A máquina está parada.');
+      return;
+    }
+
+    const nextPendingTest = currentBlock.tests?.find((test) => !test.done);
+
+    const rawTestTime =
+      typeof testValue === 'string'
+        ? testValue
+        : testValue?.time || testValue?.testTime || nextPendingTest?.time || '';
+
+    const formattedTestTime = formatTimeInput(rawTestTime);
+
+    if (!formattedTestTime) {
+      showFeedback('error', 'Horário de teste inválido.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      const machine = machines.find((m) => m.id === machineId);
-
-      if (!machine) {
-        showFeedback('error', 'Máquina não encontrada.');
-        return;
-      }
-
-      const currentBlock = machine.blocks?.[machine.blocks.length - 1];
-
-      if (!currentBlock || currentBlock.endTime !== null) {
-        showFeedback('warning', 'A máquina está parada.');
-        return;
-      }
-
-      const nextPendingTest = currentBlock.tests?.find((test) => !test.done);
-
-      const rawTestTime =
-        typeof testValue === 'string'
-          ? testValue
-          : testValue?.time ||
-            testValue?.testTime ||
-            nextPendingTest?.time ||
-            '';
-
-      const formattedTestTime = formatTimeInput(rawTestTime);
-
-      if (!formattedTestTime) {
-        showFeedback('error', 'Horário de teste inválido.');
-        return;
-      }
-
       const response = await insertTest(machineId, {
         testTime: formattedTestTime,
       });
@@ -244,6 +247,8 @@ export function useMachinesController() {
     } catch (error) {
       showFeedback('error', error.message || 'Erro ao registrar teste.');
       throw error;
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -284,6 +289,7 @@ export function useMachinesController() {
 
       setErrors({});
       clearFeedback();
+      setIsSubmitting(true);
 
       const data = await insertMachine({
         code: normalizedCode,
@@ -302,6 +308,8 @@ export function useMachinesController() {
       showFeedback('success', 'Máquina criada com sucesso.');
     } catch (error) {
       showFeedback('error', error.message || 'Erro ao criar máquina.');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -313,6 +321,8 @@ export function useMachinesController() {
   }
 
   async function confirmDeleteMachine() {
+    setIsSubmitting(true);
+
     try {
       await deleteMachineRequest(deleteModal.machineId);
 
@@ -325,6 +335,8 @@ export function useMachinesController() {
       showFeedback('success', 'Máquina excluída com sucesso.');
     } catch (error) {
       showFeedback('error', error.message || 'Erro ao excluir máquina.');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -420,12 +432,12 @@ export function useMachinesController() {
 
     if (!machine) {
       showFeedback('error', 'Máquina não encontrada.');
-      return;
+      return false;
     }
 
     if (typeof updates.frequency === 'number' && updates.frequency < 0.5) {
       showFeedback('error', 'A frequência mínima é 0.5 (30 minutos).');
-      return;
+      return false;
     }
 
     if (updates.firstTest) {
@@ -433,7 +445,7 @@ export function useMachinesController() {
 
       if (!normalizedFirstTest) {
         showFeedback('error', 'Horário do primeiro teste inválido.');
-        return;
+        return false;
       }
 
       if (!isTimeWithinShift(normalizedFirstTest, machine.shift)) {
@@ -441,7 +453,7 @@ export function useMachinesController() {
           'error',
           'Horário do primeiro teste não pertence ao turno selecionado.',
         );
-        return;
+        return false;
       }
 
       updates = {
@@ -464,6 +476,8 @@ export function useMachinesController() {
       };
     }
 
+    setIsSubmitting(true);
+
     try {
       const response = await updateMachineRequest(machineId, updates);
 
@@ -473,8 +487,12 @@ export function useMachinesController() {
       });
 
       showFeedback('success', 'Máquina atualizada com sucesso.');
+      return true;
     } catch (error) {
       showFeedback('error', error.message || 'Erro ao atualizar máquina.');
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -526,6 +544,7 @@ export function useMachinesController() {
     createMachineModal,
     setCreateMachineModal,
     closeCreateMachineModal,
+    isSubmitting,
     confirmStopMachine,
     confirmResumeMachine,
     today,

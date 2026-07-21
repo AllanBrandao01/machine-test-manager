@@ -40,6 +40,11 @@ export const CloseButton = styled.button`
   cursor: pointer;
   color: #5f6b6a;
   flex-shrink: 0;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 export const FormGrid = styled.div`
@@ -63,4 +68,9 @@ export const CancelButton = styled.button`
   border-radius: 10px;
   font-weight: 600;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
