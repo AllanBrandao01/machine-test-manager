@@ -468,7 +468,6 @@ export async function insertMachine(machineData) {
     throw new Error('Nenhum turno ativo encontrado.');
   }
 
-  assertValidShift(machineData.shift);
   assertValidTime(machineData.firstTest, 'Horário do primeiro teste');
 
   const frequency = assertValidFrequency(machineData.frequency);
@@ -478,14 +477,10 @@ export async function insertMachine(machineData) {
   if (!code) throw new Error('Código da máquina é obrigatório.');
   if (!material) throw new Error('Material é obrigatório.');
 
-  if (!isTimeWithinShift(machineData.firstTest, machineData.shift)) {
+  if (!isTimeWithinShift(machineData.firstTest, activeShiftSession.shift)) {
     throw new Error(
       'Horário do primeiro teste não pertence ao turno selecionado.',
     );
-  }
-
-  if (machineData.shift !== activeShiftSession.shift) {
-    throw new Error('O turno da máquina deve ser igual ao turno ativo.');
   }
 
   const duplicatedMachine = state.machines.some(
@@ -504,7 +499,7 @@ export async function insertMachine(machineData) {
     material,
     frequency,
     firstTest: machineData.firstTest,
-    shift: machineData.shift,
+    shift: activeShiftSession.shift,
     shiftSessionId: activeShiftSession.id,
     createdAt: now,
   };
@@ -687,15 +682,12 @@ export async function updateMachineRequest(machineId, updates) {
   const nextFirstTest =
     updates.firstTest !== undefined ? updates.firstTest : machine.firstTest;
 
-  const nextShift = updates.shift !== undefined ? updates.shift : machine.shift;
-
   if (!nextCode) throw new Error('Código da máquina é obrigatório.');
   if (!nextMaterial) throw new Error('Material é obrigatório.');
 
-  assertValidShift(nextShift);
   assertValidTime(nextFirstTest, 'Horário do primeiro teste');
 
-  if (!isTimeWithinShift(nextFirstTest, nextShift)) {
+  if (!isTimeWithinShift(nextFirstTest, machine.shift)) {
     throw new Error(
       'Horário do primeiro teste não pertence ao turno selecionado.',
     );
@@ -726,7 +718,6 @@ export async function updateMachineRequest(machineId, updates) {
           material: nextMaterial,
           frequency: nextFrequency,
           firstTest: nextFirstTest,
-          shift: nextShift,
         }
       : item,
   );

@@ -5,6 +5,7 @@ import Dashboard from '../../features/machines/components/Dashboard';
 import ModalConfirm from '../../components/ModalConfirm';
 import ModalStopMachine from '../../components/ModalStopMachine';
 import ModalResumeMachine from '../../components/ModalResumeMachine';
+import ModalStartShift from '../../components/ModalStartShift';
 import { useMachinesController } from '../../features/machines/hooks/useMachinesController';
 import { SectionBar, ResetButton } from './styles';
 
@@ -25,8 +26,7 @@ function Home() {
     setFrequency,
     firstTest,
     setFirstTest,
-    shift,
-    setShift,
+    activeShift,
     errors,
     feedback,
     clearFeedback,
@@ -59,7 +59,7 @@ function Home() {
             </div>
 
             <div className="appInfo">
-              <span>Turno atual: {shift}</span>
+              <span>Turno atual: {activeShift ?? '—'}</span>
               <span>{today}</span>
             </div>
           </div>
@@ -101,8 +101,6 @@ function Home() {
             setFrequency={setFrequency}
             firstTest={firstTest}
             setFirstTest={setFirstTest}
-            shift={shift}
-            setShift={setShift}
             errors={errors}
             onCreate={() =>
               handleAddMachine({
@@ -110,7 +108,6 @@ function Home() {
                 material,
                 frequency,
                 firstTest,
-                shift,
               })
             }
           />
@@ -179,11 +176,9 @@ function Home() {
             onConfirm={confirmResumeMachine}
           />
 
-          <ModalConfirm
+          <ModalStartShift
             isOpen={newShiftModal}
-            title="Iniciar novo turno"
-            message="Deseja realmente iniciar um novo turno?"
-            onCancel={() => setNewShiftModal(false)}
+            onClose={() => setNewShiftModal(false)}
             onConfirm={handleStartNewShift}
           />
         </div>

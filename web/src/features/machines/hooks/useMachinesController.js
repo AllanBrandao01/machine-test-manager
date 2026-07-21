@@ -9,6 +9,7 @@ import {
   insertStop,
   updateStopResume,
   insertTest,
+  getActiveShiftSession,
   startNewShiftSession,
   updateMachineRequest,
   deleteMachineRequest,
@@ -49,7 +50,7 @@ export function useMachinesController() {
   const [frequency, setFrequency] = useState(2);
   const [firstTest, setFirstTest] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [shift, setShift] = useState('A');
+  const [activeShift, setActiveShift] = useState(null);
   const [errors, setErrors] = useState({});
   const [stopModal, setStopModal] = useState({
     open: false,
@@ -98,7 +99,7 @@ export function useMachinesController() {
     setErrors({});
   }
 
-  function validateMachineForm(machineData) {
+  function validateMachineForm(machineData, shift) {
     const newErrors = {};
 
     if (!machineData.code?.trim()) {
@@ -121,7 +122,7 @@ export function useMachinesController() {
 
     if (!normalizedFirstTest) {
       newErrors.firstTest = 'Horário do primeiro teste inválido.';
-    } else if (!isTimeWithinShift(normalizedFirstTest, machineData.shift)) {
+    } else if (!isTimeWithinShift(normalizedFirstTest, shift)) {
       newErrors.firstTest =
         'Horário do primeiro teste não pertence ao turno selecionado.';
     }
@@ -135,21 +136,21 @@ export function useMachinesController() {
     };
   }
 
-  async function handleStartNewShift() {
+  async function handleStartNewShift(selectedShift) {
     try {
-      if (!shift) {
+      if (!selectedShift) {
         showFeedback(
           'error',
-          'Selecione a turma antes de iniciar um novo turno.',
+          'Selecione o turno antes de iniciar um novo turno.',
         );
-        setNewShiftModal(false);
         return;
       }
 
-      await startNewShiftSession(shift);
+      const session = await startNewShiftSession(selectedShift);
 
       dispatch({ type: 'SET_MACHINES', payload: [] });
       resetMachineForm();
+      setActiveShift(session?.shift ?? selectedShift);
       showFeedback('success', 'Novo turno iniciado com sucesso.');
     } catch (error) {
       console.error(error);
@@ -243,12 +244,16 @@ export function useMachinesController() {
   useEffect(() => {
     async function loadMachines() {
       try {
-        const data = await fetchMachines();
+        const [data, activeSession] = await Promise.all([
+          fetchMachines(),
+          getActiveShiftSession(),
+        ]);
 
         dispatch({
           type: 'SET_MACHINES',
           payload: data.map(normalizeMachineFromApi),
         });
+        setActiveShift(activeSession?.shift ?? null);
       } catch (error) {
         console.error('Erro ao buscar máquinas:', error);
         showFeedback('error', error.message || 'Erro ao buscar máquinas.');
@@ -264,7 +269,7 @@ export function useMachinesController() {
         errors: newErrors,
         normalizedCode,
         normalizedFirstTest,
-      } = validateMachineForm(machineData);
+      } = validateMachineForm(machineData, activeShift);
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
@@ -279,7 +284,6 @@ export function useMachinesController() {
         material: machineData.material.trim(),
         frequency: machineData.frequency,
         firstTest: normalizedFirstTest,
-        shift: machineData.shift,
       });
 
       dispatch({
@@ -425,9 +429,7 @@ export function useMachinesController() {
         return;
       }
 
-      const nextShift = updates.shift || machine.shift;
-
-      if (!isTimeWithinShift(normalizedFirstTest, nextShift)) {
+      if (!isTimeWithinShift(normalizedFirstTest, machine.shift)) {
         showFeedback(
           'error',
           'Horário do primeiro teste não pertence ao turno selecionado.',
@@ -496,8 +498,7 @@ export function useMachinesController() {
     setFrequency,
     firstTest,
     setFirstTest,
-    shift,
-    setShift,
+    activeShift,
     errors,
     feedback,
     clearFeedback,

@@ -1,7 +1,6 @@
 import { formatTimeInput } from '../../../../utils/time';
 import FormField from '../../../../components/FormField';
 import { Input } from '../../../../components/ui/Input';
-import { Select } from '../../../../components/ui/Select';
 import { Button } from '../../../../components/ui/Button';
 import { FormCard, Header, Title, Subtitle, FormGrid, Actions } from './styles';
 
@@ -14,8 +13,6 @@ function MachineForm({
   setFrequency,
   firstTest,
   setFirstTest,
-  shift,
-  setShift,
   errors,
   onCreate,
 }) {
@@ -93,19 +90,6 @@ function MachineForm({
               setFirstTest(normalized);
             }}
           />
-        </FormField>
-
-        <FormField label="Turma" htmlFor="machine-shift">
-          <Select
-            id="machine-shift"
-            value={shift}
-            onChange={(e) => setShift(e.target.value)}
-          >
-            <option value="A">Turma A</option>
-            <option value="B">Turma B</option>
-            <option value="C">Turma C</option>
-            <option value="D">Turma D</option>
-          </Select>
         </FormField>
       </FormGrid>
 

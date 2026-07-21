@@ -6,7 +6,6 @@ import {
 } from '../../../../utils/shift';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
-import { Select } from '../../../../components/ui/Select';
 import {
   CardContainer,
   Header,
@@ -73,7 +72,6 @@ function MachineCard({
   const [editCode, setEditCode] = useState(machine.code || '');
   const [editMaterial, setEditMaterial] = useState(machine.material || '');
   const [editFrequency, setEditFrequency] = useState(machine.frequency || 2);
-  const [editShift, setEditShift] = useState(machine.shift || 'A');
   const [editFirstTest, setEditFirstTest] = useState(machine.firstTest || '');
 
   const nextTest = machine.nextTestTime;
@@ -83,7 +81,6 @@ function MachineCard({
     setEditCode(machine.code || '');
     setEditMaterial(machine.material || '');
     setEditFrequency(machine.frequency || 2);
-    setEditShift(machine.shift || 'A');
     setEditFirstTest(machine.firstTest || '');
     setIsEditing(true);
   }
@@ -163,21 +160,6 @@ function MachineCard({
 
           <FieldGroup>
             <FieldLabel>
-              Turno
-              <Select
-                value={editShift}
-                onChange={(e) => setEditShift(e.target.value)}
-              >
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="D">D</option>
-              </Select>
-            </FieldLabel>
-          </FieldGroup>
-
-          <FieldGroup>
-            <FieldLabel>
               Primeiro teste
               <Input
                 type="time"
@@ -194,7 +176,6 @@ function MachineCard({
                   code: editCode,
                   material: editMaterial,
                   frequency: editFrequency,
-                  shift: editShift,
                   firstTest: editFirstTest,
                 });
                 setIsEditing(false);

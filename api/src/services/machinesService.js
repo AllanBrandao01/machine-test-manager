@@ -47,12 +47,6 @@ function assertValidTime(value, fieldLabel) {
   }
 }
 
-function assertValidShift(shift) {
-  if (!['A', 'B', 'C', 'D'].includes(shift)) {
-    throw new BadRequestError('Turno inválido.');
-  }
-}
-
 function assertValidFrequency(frequency) {
   const safeFrequency = Number(frequency);
 
@@ -63,7 +57,7 @@ function assertValidFrequency(frequency) {
   return safeFrequency;
 }
 
-function assertValidMachinePayload(data) {
+function assertValidMachinePayload(data, shift) {
   if (!data.code?.trim()) {
     throw new BadRequestError('Código da máquina é obrigatório.');
   }
@@ -72,10 +66,9 @@ function assertValidMachinePayload(data) {
     throw new BadRequestError('Material é obrigatório.');
   }
 
-  assertValidShift(data.shift);
   assertValidTime(data.firstTest, 'Horário do primeiro teste');
 
-  if (!isTimeWithinShift(data.firstTest, data.shift)) {
+  if (!isTimeWithinShift(data.firstTest, shift)) {
     throw new BadRequestError(
       'Horário do primeiro teste não pertence ao turno selecionado.',
     );
@@ -183,13 +176,9 @@ export async function createMachine(data) {
     throw new NotFoundError('Nenhum turno ativo encontrado.');
   }
 
-  const safeFrequency = assertValidMachinePayload(data);
+  const safeFrequency = assertValidMachinePayload(data, activeShiftSession.shift);
   const normalizedCode = data.code.trim().toUpperCase();
   const normalizedMaterial = data.material.trim();
-
-  if (data.shift !== activeShiftSession.shift) {
-    throw new BadRequestError('O turno da máquina deve ser igual ao turno ativo.');
-  }
 
   const existingMachine = await prisma.machine.findFirst({
     where: {
@@ -208,7 +197,7 @@ export async function createMachine(data) {
       material: normalizedMaterial,
       frequency: safeFrequency,
       firstTest: data.firstTest,
-      shift: data.shift,
+      shift: activeShiftSession.shift,
       shiftSessionId: activeShiftSession.id,
     },
     include: {
@@ -445,8 +434,6 @@ export async function updateMachine(id, data) {
   const nextFirstTest =
     data.firstTest !== undefined ? data.firstTest : machine.firstTest;
 
-  const nextShift = data.shift !== undefined ? data.shift : machine.shift;
-
   if (!nextCode) {
     throw new BadRequestError('Código da máquina é obrigatório.');
   }
@@ -455,10 +442,9 @@ export async function updateMachine(id, data) {
     throw new BadRequestError('Material é obrigatório.');
   }
 
-  assertValidShift(nextShift);
   assertValidTime(nextFirstTest, 'Horário do primeiro teste');
 
-  if (!isTimeWithinShift(nextFirstTest, nextShift)) {
+  if (!isTimeWithinShift(nextFirstTest, machine.shift)) {
     throw new BadRequestError(
       'Horário do primeiro teste não pertence ao turno selecionado.',
     );
@@ -491,7 +477,6 @@ export async function updateMachine(id, data) {
       material: nextMaterial,
       frequency: nextFrequency,
       firstTest: nextFirstTest,
-      shift: nextShift,
     },
     include: {
       shiftSession: true,
