@@ -95,13 +95,9 @@ function MachineForm({
             onBlur={() => {
               const normalized = formatTimeInput(firstTest);
 
-              if (!normalized) {
-                alert('Horário inválido');
-                setFirstTest('06:00');
-                return;
+              if (normalized) {
+                setFirstTest(normalized);
               }
-
-              setFirstTest(normalized);
             }}
           />
         </FormField>
