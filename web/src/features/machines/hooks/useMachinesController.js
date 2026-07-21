@@ -70,6 +70,7 @@ export function useMachinesController() {
     machineId: null,
   });
   const [newShiftModal, setNewShiftModal] = useState(false);
+  const [createMachineModal, setCreateMachineModal] = useState(false);
   const feedbackTimerRef = useRef(null);
 
   function clearFeedback() {
@@ -97,6 +98,11 @@ export function useMachinesController() {
     setFrequency(2);
     setFirstTest('');
     setErrors({});
+  }
+
+  function closeCreateMachineModal() {
+    resetMachineForm();
+    setCreateMachineModal(false);
   }
 
   function validateMachineForm(machineData, shift) {
@@ -292,6 +298,7 @@ export function useMachinesController() {
       });
 
       resetMachineForm();
+      setCreateMachineModal(false);
       showFeedback('success', 'Máquina criada com sucesso.');
     } catch (error) {
       showFeedback('error', error.message || 'Erro ao criar máquina.');
@@ -516,6 +523,9 @@ export function useMachinesController() {
     newShiftModal,
     setNewShiftModal,
     handleStartNewShift,
+    createMachineModal,
+    setCreateMachineModal,
+    closeCreateMachineModal,
     confirmStopMachine,
     confirmResumeMachine,
     today,

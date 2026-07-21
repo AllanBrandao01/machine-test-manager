@@ -1,4 +1,3 @@
-import MachineForm from '../../features/machines/components/MachineForm';
 import MachineCard from '../../features/machines/components/MachineCard';
 import Filters from '../../features/machines/components/Filters';
 import Dashboard from '../../features/machines/components/Dashboard';
@@ -6,8 +5,9 @@ import ModalConfirm from '../../components/ModalConfirm';
 import ModalStopMachine from '../../components/ModalStopMachine';
 import ModalResumeMachine from '../../components/ModalResumeMachine';
 import ModalStartShift from '../../components/ModalStartShift';
+import ModalCreateMachine from '../../components/ModalCreateMachine';
 import { useMachinesController } from '../../features/machines/hooks/useMachinesController';
-import { SectionBar, ResetButton } from './styles';
+import { SectionBar, PrimaryButton, ResetButton } from './styles';
 
 function Home() {
   const {
@@ -44,6 +44,9 @@ function Home() {
     newShiftModal,
     setNewShiftModal,
     handleStartNewShift,
+    createMachineModal,
+    setCreateMachineModal,
+    closeCreateMachineModal,
     confirmStopMachine,
     confirmResumeMachine,
     today,
@@ -86,32 +89,14 @@ function Home() {
         </div>
 
         <SectionBar>
+          <PrimaryButton onClick={() => setCreateMachineModal(true)}>
+            Nova máquina
+          </PrimaryButton>
+
           <ResetButton onClick={() => setNewShiftModal(true)}>
             Iniciar novo turno
           </ResetButton>
         </SectionBar>
-
-        <div className="formSection">
-          <MachineForm
-            code={code}
-            setCode={setCode}
-            material={material}
-            setMaterial={setMaterial}
-            frequency={frequency}
-            setFrequency={setFrequency}
-            firstTest={firstTest}
-            setFirstTest={setFirstTest}
-            errors={errors}
-            onCreate={() =>
-              handleAddMachine({
-                code,
-                material,
-                frequency,
-                firstTest,
-              })
-            }
-          />
-        </div>
 
         <Filters
           statusFilter={statusFilter}
@@ -180,6 +165,28 @@ function Home() {
             isOpen={newShiftModal}
             onClose={() => setNewShiftModal(false)}
             onConfirm={handleStartNewShift}
+          />
+
+          <ModalCreateMachine
+            isOpen={createMachineModal}
+            onClose={closeCreateMachineModal}
+            code={code}
+            setCode={setCode}
+            material={material}
+            setMaterial={setMaterial}
+            frequency={frequency}
+            setFrequency={setFrequency}
+            firstTest={firstTest}
+            setFirstTest={setFirstTest}
+            errors={errors}
+            onCreate={() =>
+              handleAddMachine({
+                code,
+                material,
+                frequency,
+                firstTest,
+              })
+            }
           />
         </div>
       </div>

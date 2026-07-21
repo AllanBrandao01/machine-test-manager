@@ -2,7 +2,16 @@ import { formatTimeInput } from '../../../../utils/time';
 import FormField from '../../../../components/FormField';
 import { Input } from '../../../../components/ui/Input';
 import { Button } from '../../../../components/ui/Button';
-import { FormCard, Header, Title, Subtitle, FormGrid, Actions } from './styles';
+import {
+  FormCard,
+  Header,
+  Title,
+  Subtitle,
+  CloseButton,
+  FormGrid,
+  Actions,
+  CancelButton,
+} from './styles';
 
 function MachineForm({
   code,
@@ -15,17 +24,22 @@ function MachineForm({
   setFirstTest,
   errors,
   onCreate,
+  onClose,
 }) {
   return (
     <FormCard>
       <Header>
         <div>
-          <Title>Cadastro de máquina</Title>
+          <Title>Nova máquina</Title>
           <Subtitle>
             Informe os dados da máquina para gerar o cronograma de testes do
             turno.
           </Subtitle>
         </div>
+
+        <CloseButton onClick={onClose} type="button" aria-label="Fechar">
+          ×
+        </CloseButton>
       </Header>
 
       <FormGrid>
@@ -94,6 +108,9 @@ function MachineForm({
       </FormGrid>
 
       <Actions>
+        <CancelButton onClick={onClose} type="button">
+          Cancelar
+        </CancelButton>
         <Button onClick={onCreate}>Criar máquina</Button>
       </Actions>
     </FormCard>
