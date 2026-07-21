@@ -4,3 +4,5 @@ web/node_modules
 web/.env
 api/.env
 api/dist
+dist
+web/dist

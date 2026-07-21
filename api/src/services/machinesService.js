@@ -187,12 +187,6 @@ export async function createMachine(data) {
   const normalizedCode = data.code.trim().toUpperCase();
   const normalizedMaterial = data.material.trim();
 
-  if (!isTimeWithinShift(data.firstTest, data.shift)) {
-    throw new Error(
-      'Horário do primeiro teste não pertence ao turno selecionado.',
-    );
-  }
-
   if (data.shift !== activeShiftSession.shift) {
     throw new BadRequestError('O turno da máquina deve ser igual ao turno ativo.');
   }
