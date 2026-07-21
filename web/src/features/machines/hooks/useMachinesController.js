@@ -9,11 +9,14 @@ import {
   insertStop,
   updateStopResume,
   insertTest,
+  undoMachineTest,
   getActiveShiftSession,
   startNewShiftSession,
   updateMachineRequest,
   deleteMachineRequest,
 } from '../../../services/machinesDataService';
+
+const UNDO_TEST_WINDOW_MS = 6000;
 
 function normalizeMachineFromApi(machine) {
   return {
@@ -72,7 +75,9 @@ export function useMachinesController() {
   const [newShiftModal, setNewShiftModal] = useState(false);
   const [createMachineModal, setCreateMachineModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [undoTest, setUndoTest] = useState(null);
   const feedbackTimerRef = useRef(null);
+  const undoTestTimerRef = useRef(null);
 
   function clearFeedback() {
     if (feedbackTimerRef.current) {
@@ -91,6 +96,14 @@ export function useMachinesController() {
       setFeedback({ type: '', message: '' });
       feedbackTimerRef.current = null;
     }, 3000);
+  }
+
+  function clearUndoTest() {
+    if (undoTestTimerRef.current) {
+      clearTimeout(undoTestTimerRef.current);
+      undoTestTimerRef.current = null;
+    }
+    setUndoTest(null);
   }
 
   function resetMachineForm() {
@@ -159,6 +172,7 @@ export function useMachinesController() {
 
       dispatch({ type: 'SET_MACHINES', payload: [] });
       resetMachineForm();
+      clearUndoTest();
       setActiveShift(session?.shift ?? selectedShift);
       showFeedback('success', 'Novo turno iniciado com sucesso.');
     } catch (error) {
@@ -243,12 +257,49 @@ export function useMachinesController() {
         payload: normalizeMachineFromApi(response),
       });
 
-      showFeedback('success', 'Teste registrado com sucesso.');
+      const insertedTest = [...(response.tests || [])].sort(
+        (a, b) => b.id - a.id,
+      )[0];
+
+      clearUndoTest();
+
+      if (insertedTest) {
+        setUndoTest({
+          machineId,
+          testId: insertedTest.id,
+          testTime: formattedTestTime,
+        });
+
+        undoTestTimerRef.current = setTimeout(() => {
+          setUndoTest(null);
+          undoTestTimerRef.current = null;
+        }, UNDO_TEST_WINDOW_MS);
+      }
     } catch (error) {
       showFeedback('error', error.message || 'Erro ao registrar teste.');
       throw error;
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleUndoTest() {
+    if (!undoTest) return;
+
+    const { machineId, testId } = undoTest;
+    clearUndoTest();
+
+    try {
+      const response = await undoMachineTest(machineId, testId);
+
+      dispatch({
+        type: 'REPLACE_MACHINE',
+        payload: normalizeMachineFromApi(response),
+      });
+
+      showFeedback('success', 'Teste desfeito.');
+    } catch (error) {
+      showFeedback('error', error.message || 'Erro ao desfazer teste.');
     }
   }
 
@@ -529,6 +580,8 @@ export function useMachinesController() {
     clearFeedback,
     handleAddMachine,
     handleCompleteNextTest: completeNextTestFlow,
+    undoTest,
+    handleUndoTest,
     handleUpdateMachine,
     handleDeleteMachine,
     stopModal,

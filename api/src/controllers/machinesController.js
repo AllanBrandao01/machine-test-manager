@@ -4,6 +4,7 @@ import {
   stopMachine,
   resumeMachine,
   registerMachineTest,
+  undoMachineTest,
   updateMachine,
   deleteMachine,
 } from '../services/machinesService.js';
@@ -60,6 +61,17 @@ export async function postMachineTest(req, res) {
   try {
     const { id } = req.params;
     const machine = await registerMachineTest(id, req.body);
+
+    return res.status(200).json(machine);
+  } catch (error) {
+    return handleControllerError(error, res);
+  }
+}
+
+export async function deleteMachineTestController(req, res) {
+  try {
+    const { id, testId } = req.params;
+    const machine = await undoMachineTest(id, Number(testId));
 
     return res.status(200).json(machine);
   } catch (error) {

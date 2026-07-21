@@ -78,6 +78,14 @@ export async function insertTest(machineId, data) {
   return parseResponse(response, 'Erro ao salvar teste.');
 }
 
+export async function undoMachineTest(machineId, testId) {
+  const response = await fetch(`${API}/machines/${machineId}/tests/${testId}`, {
+    method: 'DELETE',
+  });
+
+  return parseResponse(response, 'Erro ao desfazer teste.');
+}
+
 export async function getActiveShiftSession() {
   const response = await fetch(`${API}/shift-session/active`);
   return parseResponse(response, 'Erro ao buscar turno atual.');

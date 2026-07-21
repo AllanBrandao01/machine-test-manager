@@ -661,6 +661,28 @@ export async function insertTest(machineId, data) {
   return buildMachineTimeline(findMachineOrThrow(state, machineId));
 }
 
+const UNDO_TEST_WINDOW_MS = 60 * 1000;
+
+export async function undoMachineTest(machineId, testId) {
+  const state = readState();
+  const machine = findMachineOrThrow(state, machineId);
+
+  const lastTest = machine.tests[machine.tests.length - 1];
+
+  if (!lastTest || lastTest.id !== testId) {
+    throw new Error('Só é possível desfazer o último teste registrado.');
+  }
+
+  if (Date.now() - new Date(lastTest.createdAt).getTime() > UNDO_TEST_WINDOW_MS) {
+    throw new Error('O prazo para desfazer este teste expirou.');
+  }
+
+  state.tests = state.tests.filter((test) => test.id !== testId);
+  writeState(state);
+
+  return buildMachineTimeline(findMachineOrThrow(state, machineId));
+}
+
 export async function updateMachineRequest(machineId, updates) {
   const state = readState();
   const machine = findMachineOrThrow(state, machineId);

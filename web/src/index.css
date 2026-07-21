@@ -109,6 +109,18 @@ body {
   line-height: 1;
 }
 
+.undoAction {
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: underline;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
   .appContainer {
     padding: 16px;

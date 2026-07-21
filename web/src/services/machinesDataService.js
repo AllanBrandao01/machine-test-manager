@@ -18,6 +18,7 @@ export const insertMachine = service.insertMachine;
 export const insertStop = service.insertStop;
 export const updateStopResume = service.updateStopResume;
 export const insertTest = service.insertTest;
+export const undoMachineTest = service.undoMachineTest;
 export const getActiveShiftSession = service.getActiveShiftSession;
 export const deactivateShiftSession = service.deactivateShiftSession;
 export const startNewShiftSession = service.startNewShiftSession;

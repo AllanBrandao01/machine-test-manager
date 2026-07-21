@@ -32,6 +32,8 @@ function Home() {
     clearFeedback,
     handleAddMachine,
     handleCompleteNextTest,
+    undoTest,
+    handleUndoTest,
     handleUpdateMachine,
     handleDeleteMachine,
     stopModal,
@@ -77,6 +79,19 @@ function Home() {
                 type="button"
               >
                 ×
+              </button>
+            </div>
+          )}
+
+          {undoTest && (
+            <div className="feedbackMessage feedback-success">
+              <span>Teste das {undoTest.testTime} registrado.</span>
+              <button
+                className="undoAction"
+                onClick={handleUndoTest}
+                type="button"
+              >
+                Desfazer
               </button>
             </div>
           )}

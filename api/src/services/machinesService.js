@@ -401,6 +401,34 @@ export async function registerMachineTest(machineId, data) {
   return buildMachineTimeline(updatedMachine);
 }
 
+const UNDO_TEST_WINDOW_MS = 60 * 1000;
+
+export async function undoMachineTest(machineId, testId) {
+  const machine = await findMachineWithRelations(machineId);
+
+  if (!machine) {
+    throw new NotFoundError('Máquina não encontrada.');
+  }
+
+  const lastTest = machine.tests[machine.tests.length - 1];
+
+  if (!lastTest || lastTest.id !== testId) {
+    throw new BadRequestError(
+      'Só é possível desfazer o último teste registrado.',
+    );
+  }
+
+  if (Date.now() - new Date(lastTest.createdAt).getTime() > UNDO_TEST_WINDOW_MS) {
+    throw new BadRequestError('O prazo para desfazer este teste expirou.');
+  }
+
+  await prisma.test.delete({ where: { id: lastTest.id } });
+
+  const updatedMachine = await findMachineWithRelations(machineId);
+
+  return buildMachineTimeline(updatedMachine);
+}
+
 export async function updateMachine(id, data) {
   const machine = await findMachineWithRelations(id);
 
