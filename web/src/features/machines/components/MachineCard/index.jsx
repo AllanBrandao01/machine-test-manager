@@ -316,7 +316,7 @@ function MachineCard({
         >
           {isSubmitting
             ? 'Concluindo...'
-            : `Concluir próximo teste ${hasLateTest ? '⚠' : ''}`}
+            : `Concluir teste ${hasLateTest ? '⚠' : ''}`}
         </PrimaryActionButton>
       </ActionsRow>
     </CardContainer>
