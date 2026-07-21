@@ -47,3 +47,14 @@ export const ConfirmButton = styled.button`
   border-radius: 8px;
   cursor: pointer;
 `;
+
+export const WarningBox = styled.div`
+  background: #fdf3e3;
+  border: 1px solid #f0c987;
+  color: #8a5a10;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 20px;
+`;

@@ -28,18 +28,18 @@ export const PrimaryButton = styled.button`
   }
 `;
 
-export const ResetButton = styled.button`
+export const AccentButton = styled.button`
   border: none;
   border-radius: 10px;
   padding: 10px 16px;
   font-weight: 700;
-  background: #e8f3f2;
-  color: #1b6f6a;
+  background: #b45309;
+  color: #ffffff;
   cursor: pointer;
   transition: all 0.15s ease;
 
   &:hover {
-    background: #d6ebe9;
+    background: #92400e;
     transform: translateY(-1px);
   }
 

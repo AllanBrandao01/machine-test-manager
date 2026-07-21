@@ -7,7 +7,7 @@ import ModalResumeMachine from '../../components/ModalResumeMachine';
 import ModalStartShift from '../../components/ModalStartShift';
 import ModalCreateMachine from '../../components/ModalCreateMachine';
 import { useMachinesController } from '../../features/machines/hooks/useMachinesController';
-import { SectionBar, PrimaryButton, ResetButton } from './styles';
+import { SectionBar, PrimaryButton, AccentButton } from './styles';
 
 function Home() {
   const {
@@ -93,9 +93,9 @@ function Home() {
             Nova máquina
           </PrimaryButton>
 
-          <ResetButton onClick={() => setNewShiftModal(true)}>
+          <AccentButton onClick={() => setNewShiftModal(true)}>
             Iniciar novo turno
-          </ResetButton>
+          </AccentButton>
         </SectionBar>
 
         <Filters
@@ -165,6 +165,7 @@ function Home() {
             isOpen={newShiftModal}
             onClose={() => setNewShiftModal(false)}
             onConfirm={handleStartNewShift}
+            runningMachinesCount={runningMachines}
           />
 
           <ModalCreateMachine
