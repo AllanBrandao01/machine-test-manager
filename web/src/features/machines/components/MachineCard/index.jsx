@@ -10,7 +10,6 @@ import {
   CardContainer,
   Header,
   Title,
-  Subtitle,
   StatusBadge,
   InfoSection,
   InfoText,
@@ -110,7 +109,6 @@ function MachineCard({
       <Header>
         <div>
           <Title>{machine.code}</Title>
-          <Subtitle>Turma: {machine.shift}</Subtitle>
         </div>
 
         <StatusBadge $status={status}>
@@ -201,9 +199,6 @@ function MachineCard({
           </InfoText>
           <InfoText>
             <strong>Frequência:</strong> {machine.frequency}h
-          </InfoText>
-          <InfoText>
-            <strong>Primeiro teste:</strong> {machine.firstTest}
           </InfoText>
 
           <ActionsRow>
@@ -301,26 +296,27 @@ function MachineCard({
       )}
 
       <ActionsRow>
-        <DangerButton
-          disabled={!isRunning || isSubmitting}
-          onClick={() => onStop(machine.id)}
-        >
-          Parar Máquina
-        </DangerButton>
-
-        <SecondaryButton
-          disabled={isRunning || isSubmitting}
-          onClick={() => onResume(machine.id)}
-        >
-          Retomar Máquina
-        </SecondaryButton>
+        {isRunning ? (
+          <DangerButton disabled={isSubmitting} onClick={() => onStop(machine.id)}>
+            Parar Máquina
+          </DangerButton>
+        ) : (
+          <SecondaryButton
+            disabled={isSubmitting}
+            onClick={() => onResume(machine.id)}
+          >
+            Retomar Máquina
+          </SecondaryButton>
+        )}
 
         <PrimaryActionButton
           $attention={hasLateTest}
           disabled={!canExecuteTest || isSubmitting}
           onClick={() => onCompleteNext(machine.id)}
         >
-          {isSubmitting ? 'Concluindo...' : `Concluir próximo teste ${hasLateTest ? '⚠' : ''}`}
+          {isSubmitting
+            ? 'Concluindo...'
+            : `Concluir próximo teste ${hasLateTest ? '⚠' : ''}`}
         </PrimaryActionButton>
       </ActionsRow>
     </CardContainer>

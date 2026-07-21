@@ -60,12 +60,6 @@ export const Title = styled.h3`
   font-size: 1.25rem;
 `;
 
-export const Subtitle = styled.p`
-  margin: 0;
-  color: #5f6b6a;
-  font-size: 0.95rem;
-`;
-
 export const StatusBadge = styled.span`
   padding: 8px 12px;
   border-radius: 999px;
@@ -138,11 +132,11 @@ export const ActionsRow = styled.div`
 `;
 export const SecondaryButton = styled.button`
   flex: 1;
-  height: 36px;
+  height: 40px;
   border: none;
   background: #e8f3f2;
   color: #1b6f6a;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
 
@@ -161,17 +155,21 @@ export const SecondaryButton = styled.button`
 `;
 
 export const DeleteButton = styled.button`
-  width: 120px;
-  height: 36px;
+  flex: 1;
+  height: 40px;
   border: none;
   background: #fdecec;
   color: #c0392b;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   transition:
     background 0.2s ease,
     opacity 0.2s ease;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     background: #f9d9d6;
@@ -184,17 +182,21 @@ export const DeleteButton = styled.button`
 `;
 
 export const EditButton = styled.button`
-  width: 120px;
-  height: 36px;
+  flex: 1;
+  height: 40px;
   border: none;
   background: #e8f3f2;
   color: #1b6f6a;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   transition:
     background 0.2s ease,
     opacity 0.2s ease;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     background: #d9ecea;
@@ -216,6 +218,10 @@ export const DangerButton = styled.button`
   cursor: pointer;
   font-weight: 600;
 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   &:hover {
     background: #a93226;
   }
@@ -227,16 +233,24 @@ export const DangerButton = styled.button`
 `;
 
 export const PrimaryActionButton = styled.button`
+  flex: 1;
+  height: 40px;
   border: none;
   background: #1b6f6a;
   color: #ffffff;
-  padding: 10px 16px;
+  padding: 0 12px;
   border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.9rem;
   transition:
     background 0.2s ease,
     opacity 0.2s ease;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 
   &:hover {
     background: #155a55;
