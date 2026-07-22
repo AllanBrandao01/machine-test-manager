@@ -4,6 +4,8 @@ Sistema de controle de testes de máquinas em turnos industriais, com geração 
 
 Deploy: [machine-test-manager.vercel.app](https://machine-test-manager.vercel.app)
 
+![Demonstração do app: cadastro de máquina e conclusão de teste](docs/demo.gif)
+
 ## Stack
 
 **Frontend** — React (Vite), Styled Components

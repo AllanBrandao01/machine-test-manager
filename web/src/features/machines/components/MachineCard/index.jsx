@@ -109,7 +109,9 @@ function MachineCard({
     <CardContainer $status={status}>
       <Header>
         <div>
-          <Title>{machine.code}</Title>
+          <Title>
+            {machine.code} - {machine.material}
+          </Title>
         </div>
 
         <StatusBadge $status={status}>
@@ -195,9 +197,6 @@ function MachineCard({
         </EditSection>
       ) : (
         <InfoSection>
-          <InfoText>
-            <strong>Material:</strong> {machine.material}
-          </InfoText>
           <InfoText>
             <strong>Frequência:</strong> {machine.frequency}h
           </InfoText>
