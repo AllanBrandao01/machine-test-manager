@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { formatTimeInput } from '../../../utils/time';
+import { isTimeWithinShift } from '../../../utils/shift';
 import { filterMachines } from '../utils/filters';
 import { getDashboardStats } from '../utils/dashboard';
 import machinesReducer from '../reducer/machinesReducer';
@@ -33,18 +34,6 @@ function normalizeMachineFromApi(machine) {
     status: machine.status ?? 'on_time',
     isStopped: machine.isStopped ?? false,
   };
-}
-
-function isTimeWithinShift(time, shift) {
-  const [hours, minutes] = time.split(':').map(Number);
-  const totalMinutes = hours * 60 + minutes;
-  const isDayShift = shift === 'A' || shift === 'C';
-
-  if (isDayShift) {
-    return totalMinutes >= 360 && totalMinutes <= 1079;
-  }
-
-  return totalMinutes >= 1080 || totalMinutes <= 359;
 }
 
 export function useMachinesController() {

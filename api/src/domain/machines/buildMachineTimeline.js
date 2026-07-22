@@ -1,27 +1,14 @@
 import { getNextTestTime } from '../../utils/schedule.js';
-import { toMinutes, toTimeString } from '../../utils/time.js';
-
-function getShiftEndMinutes(shift) {
-  return shift === 'B' || shift === 'D' ? 30 * 60 : 18 * 60;
-}
-
-function normalizeMinutesForShift(time, shift) {
-  let minutes = toMinutes(time);
-
-  if ((shift === 'B' || shift === 'D') && minutes <= 6 * 60) {
-    minutes += 24 * 60;
-  }
-
-  return minutes;
-}
+import { toTimeString, getCurrentTimeInSaoPaulo } from '../../utils/time.js';
+import { toAbsoluteMinutes, getShiftEndMinutes } from '../../utils/shift.js';
 
 function isTimeWithinBlock(time, startTime, endTime, shift) {
-  const value = normalizeMinutesForShift(time, shift);
-  const start = normalizeMinutesForShift(startTime, shift);
+  const value = toAbsoluteMinutes(time, shift);
+  const start = toAbsoluteMinutes(startTime, shift);
   const end =
     endTime === null
       ? getShiftEndMinutes(shift)
-      : normalizeMinutesForShift(endTime, shift);
+      : toAbsoluteMinutes(endTime, shift);
 
   return value >= start && value <= end;
 }
@@ -54,11 +41,11 @@ function getOpenBlockPendingTests({ block, machine, allTests }) {
 
   let cursorMinutes =
     blockDoneTests.length > 0
-      ? normalizeMinutesForShift(
+      ? toAbsoluteMinutes(
           blockDoneTests[blockDoneTests.length - 1].testTime,
           machine.shift,
         ) + frequencyMinutes
-      : normalizeMinutesForShift(block.startTime, machine.shift);
+      : toAbsoluteMinutes(block.startTime, machine.shift);
 
   const pending = [];
 
@@ -82,23 +69,8 @@ function getMachineStatus(nextTestTime, shift, isStopped) {
   if (isStopped) return 'stopped';
   if (!nextTestTime) return 'on_time';
 
-  const now = new Date();
-  let currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-  const [h, m] = nextTestTime.split(':').map(Number);
-  let nextMinutes = h * 60 + m;
-
-  const isNightShift = shift === 'B' || shift === 'D';
-
-  if (isNightShift) {
-    if (currentMinutes < 6 * 60) {
-      currentMinutes += 24 * 60;
-    }
-
-    if (nextMinutes < 6 * 60) {
-      nextMinutes += 24 * 60;
-    }
-  }
+  const currentMinutes = toAbsoluteMinutes(getCurrentTimeInSaoPaulo(), shift);
+  const nextMinutes = toAbsoluteMinutes(nextTestTime, shift);
 
   const diff = currentMinutes - nextMinutes;
 
@@ -111,14 +83,14 @@ function getMachineStatus(nextTestTime, shift, isStopped) {
 export function buildMachineTimeline(machine) {
   const tests = [...(machine.tests || [])].sort(
     (a, b) =>
-      normalizeMinutesForShift(a.testTime, machine.shift) -
-      normalizeMinutesForShift(b.testTime, machine.shift),
+      toAbsoluteMinutes(a.testTime, machine.shift) -
+      toAbsoluteMinutes(b.testTime, machine.shift),
   );
 
   const stops = [...(machine.stops || [])].sort(
     (a, b) =>
-      normalizeMinutesForShift(a.stopTime, machine.shift) -
-      normalizeMinutesForShift(b.stopTime, machine.shift),
+      toAbsoluteMinutes(a.stopTime, machine.shift) -
+      toAbsoluteMinutes(b.stopTime, machine.shift),
   );
 
   const blocks = [];
@@ -173,8 +145,8 @@ export function buildMachineTimeline(machine) {
       ...block,
       tests: [...doneTests, ...pendingTests].sort(
         (a, b) =>
-          normalizeMinutesForShift(a.time, machine.shift) -
-          normalizeMinutesForShift(b.time, machine.shift),
+          toAbsoluteMinutes(a.time, machine.shift) -
+          toAbsoluteMinutes(b.time, machine.shift),
       ),
     };
   });

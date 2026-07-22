@@ -1,3 +1,8 @@
+import {
+  isTimeWithinShift,
+  isNowInsideShiftWindow,
+} from '../utils/shift';
+
 const STORAGE_KEY = 'machine-test-scheduler:demo:v1';
 
 function getInitialState() {
@@ -90,29 +95,6 @@ function normalizeMinutesForShift(time, shift) {
 
 function getShiftEndMinutes(shift) {
   return shift === 'B' || shift === 'D' ? 30 * 60 : 18 * 60;
-}
-
-function isTimeWithinShift(time, shift) {
-  const minutes = toMinutes(time);
-  const isDayShift = shift === 'A' || shift === 'C';
-
-  if (isDayShift) {
-    return minutes >= 360 && minutes <= 1079;
-  }
-
-  return minutes >= 1080 || minutes <= 359;
-}
-
-function isCurrentTimeWithinShift(shift) {
-  const now = new Date();
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const isDayShift = shift === 'A' || shift === 'C';
-
-  if (isDayShift) {
-    return minutes >= 360 && minutes <= 1079;
-  }
-
-  return minutes >= 1080 || minutes <= 359;
 }
 
 function isTimeWithinBlock(time, startTime, endTime, shift) {
@@ -410,7 +392,7 @@ export async function fetchMachines() {
 export async function startNewShiftSession(shift) {
   assertValidShift(shift);
 
-  if (!isCurrentTimeWithinShift(shift)) {
+  if (!isNowInsideShiftWindow(shift)) {
     throw new Error('Não é possível iniciar este turno neste horário.');
   }
 

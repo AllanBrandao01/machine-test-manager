@@ -1,25 +1,10 @@
 import prisma from '../lib/prisma.js';
+import { getCurrentTimeInSaoPaulo } from '../utils/time.js';
+import { isTimeWithinShift } from '../utils/shift.js';
 import { BadRequestError } from '../utils/httpErrors.js';
 
 function isCurrentTimeWithinShift(shift) {
-  const formatter = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  const now = formatter.format(new Date());
-  const [h, m] = now.split(':').map(Number);
-  const minutes = h * 60 + m;
-
-  const isDayShift = shift === 'A' || shift === 'C';
-
-  if (isDayShift) {
-    return minutes >= 360 && minutes <= 1079;
-  }
-
-  return minutes >= 1080 || minutes <= 359;
+  return isTimeWithinShift(getCurrentTimeInSaoPaulo(), shift);
 }
 
 function assertValidShift(shift) {

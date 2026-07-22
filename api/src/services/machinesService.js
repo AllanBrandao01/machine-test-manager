@@ -1,30 +1,8 @@
 import prisma from '../lib/prisma.js';
 import { buildMachineTimeline } from '../domain/machines/buildMachineTimeline.js';
-import { toMinutes } from '../utils/time.js';
+import { getCurrentTimeInSaoPaulo } from '../utils/time.js';
+import { isTimeWithinShift, toAbsoluteMinutes } from '../utils/shift.js';
 import { BadRequestError, NotFoundError } from '../utils/httpErrors.js';
-
-function getCurrentTimeInSaoPaulo() {
-  const formatter = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  return formatter.format(new Date());
-}
-
-function isTimeWithinShift(time, shift) {
-  const minutes = toMinutes(time);
-
-  const isDayShift = shift === 'A' || shift === 'C';
-
-  if (isDayShift) {
-    return minutes >= 360 && minutes <= 1079; // 06:00 → 17:59
-  }
-
-  return minutes >= 1080 || minutes <= 359; // 18:00 → 05:59
-}
 
 function getCurrentAbsoluteMinutesForShift(shift) {
   const nowTime = getCurrentTimeInSaoPaulo();
@@ -75,17 +53,6 @@ function assertValidMachinePayload(data, shift) {
   }
 
   return assertValidFrequency(data.frequency);
-}
-
-function toAbsoluteMinutes(time, shift) {
-  let minutes = toMinutes(time);
-  const isNightShift = shift === 'B' || shift === 'D';
-
-  if (isNightShift && minutes <= 6 * 60) {
-    minutes += 24 * 60;
-  }
-
-  return minutes;
 }
 
 async function findMachineWithRelations(id) {
