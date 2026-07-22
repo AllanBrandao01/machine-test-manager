@@ -59,6 +59,51 @@ export const ConfirmButton = styled.button`
   }
 `;
 
+export const FieldWithHelp = styled.div`
+  position: relative;
+`;
+
+export const HelpIcon = styled.span`
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #e8f3f2;
+  color: #1b6f6a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  outline: none;
+
+  &:hover > div,
+  &:focus > div {
+    opacity: 1;
+    visibility: visible;
+  }
+`;
+
+export const Tooltip = styled.div`
+  position: absolute;
+  top: 24px;
+  right: 0;
+  width: 220px;
+  background: #244240;
+  color: #ffffff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+`;
+
 export const WarningBox = styled.div`
   background: #fdf3e3;
   border: 1px solid #f0c987;
